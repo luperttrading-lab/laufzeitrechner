@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="Laufzeit-Rechner — Was-wäre-wenn, Potenzial, Trainings-/Wettkampf-Puls und VDOT-Trainingstempi für leistungsorientierte Läufer.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Laufzeit-Rechner">
+<meta name="theme-color" content="#0a0c10">
+<title>laufzeit-rechner-v7.41</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c10; --bg2:#0e1117; --panel:#14181f; --panel2:#1b2029;
+    --line:#262c37; --txt:#e7ebf2; --muted:#aab2c0;
+    --accent:#5ef2c4; --warn:#ff7a59; --blue:#5aa9ff; --puls:#ff5d8f; --glow:rgba(94,242,196,.35);
+    --hfmaxcol:#f2c14e; --hfrcol:#b18cff; --hrcol:#f2c14e;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--txt);}
+  body{
+    font-family:'Archivo',sans-serif;
+    font-variant-numeric:tabular-nums lining-nums;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #11202a 0%, transparent 55%),
+      radial-gradient(100% 70% at 100% 0%, #1a1320 0%, transparent 50%),
+      var(--bg);
+    min-height:100vh;
+    padding:max(10px,env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:480px;margin:0 auto;}
+  header{margin-bottom:10px;}
+  .kicker{font-family:'Barlow Semi Condensed',monospace;font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent);opacity:.9;line-height:1.4;}
+  .htitle{display:flex;align-items:center;gap:9px;margin:3px 0 0;}
+  h1{font-size:21px;font-weight:800;letter-spacing:-.02em;margin:0;line-height:1.05;}
+  .infobtn{flex:none;width:21px;height:21px;border-radius:50%;border:1px solid rgba(90,169,255,.6);
+    background:rgba(90,169,255,.18);color:var(--blue);font-family:'Barlow Semi Condensed',monospace;font-size:12px;
+    font-style:normal;font-weight:700;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;}
+  .infobtn:active{border-color:var(--blue);background:rgba(90,169,255,.4);color:var(--blue);}
+  .infopop{display:none;margin-top:9px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:12px;padding:10px 12px;color:var(--muted);font-size:12px;line-height:1.45;}
+  .infopop.show{display:block;}
+  .modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(4,6,10,.72);
+    align-items:center;justify-content:center;padding:22px;}
+  .modal.show{display:flex;}
+  .modalbox{position:relative;width:100%;max-width:420px;max-height:82vh;overflow-y:auto;
+    background:var(--panel);border:1px solid #3a4453;border-radius:18px;padding:20px 17px 18px;
+    box-shadow:0 30px 70px -18px #000;font-family:'Inter',sans-serif;color:var(--muted);
+    font-size:13px;line-height:1.55;}
+  .modalbox b{color:var(--txt);}
+  .modalbody{padding-right:26px;}
+  .modaltitle{font-family:'Archivo',sans-serif;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);background:rgba(94,242,196,.12);border:1px solid rgba(94,242,196,.3);border-radius:10px;padding:8px 12px;margin:-6px -26px 14px 0;}
+  .orakelintro{font-family:'Inter',sans-serif;font-size:11.5px;line-height:1.5;color:var(--muted);margin:0 2px 12px;}
+  .orakelrow{align-items:stretch;margin-top:2px;gap:6px;justify-content:center;}
+  .oksumbox{flex:1;display:flex;flex-direction:column;align-items:center;background:#07090e;border:1px solid #3a4453;border-radius:12px;padding:6px 3px;min-width:0;}
+  .oktagbox{flex:0 0 118px;display:flex;flex-direction:column;align-items:center;background:#07090e;border:1px solid #3a4453;border-radius:12px;padding:6px 3px;min-width:0;}
+  .oktagbox .wlabel{width:100%;text-align:center;border-bottom:1px solid #2c3441;padding-bottom:4px;margin-bottom:0;white-space:nowrap;}
+  .oktagbox .wcell{width:100%;display:flex;justify-content:center;}
+  .oktagbox .witem{font-size:20px;}
+  .oksumbox .wlabel{width:100%;text-align:center;border-bottom:1px solid #2c3441;padding-bottom:4px;margin-bottom:0;}
+  .oksumval{flex:1;display:flex;align-items:center;justify-content:center;font-family:'Barlow Semi Condensed',monospace;font-size:21px;font-weight:700;color:var(--blue);white-space:nowrap;}
+  .orakelwarn{font-family:'Inter',sans-serif;font-size:10.5px;line-height:1.5;color:var(--warn);background:rgba(255,122,89,.09);border:1px solid rgba(255,122,89,.32);border-radius:10px;padding:9px 11px;margin-top:12px;}
+  .startgate{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(4,6,10,.93);backdrop-filter:blur(3px);}
+  .startgate.show{display:flex;}
+  .startgatebox{max-width:440px;width:100%;max-height:90vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 20px 18px;}
+  .startgatebox p{font-family:'Inter',sans-serif;font-size:12px;line-height:1.55;color:var(--txt);margin:0 0 11px;}
+  .startgatebox p.muted{color:var(--muted);font-size:11px;}
+  .startbtn{width:100%;margin-top:6px;padding:13px;border:none;border-radius:12px;background:var(--accent);color:#06231b;font-family:'Archivo',sans-serif;font-weight:700;font-size:14px;letter-spacing:.04em;cursor:pointer;}
+  .startbtn:active{filter:brightness(.92);}
+  .orakelintro b{color:var(--txt);}
+  .orakellevels{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
+  .oklvl{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel2);border:1px solid var(--line);border-left-width:3px;border-radius:11px;padding:9px 12px;}
+  .ok-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .ok-name{font-family:'Barlow Semi Condensed',monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;}
+  .ok-desc{font-family:'Inter',sans-serif;font-size:10.5px;line-height:1.35;color:var(--muted);}
+  .ok-km{font-family:'Barlow Semi Condensed',monospace;font-size:19px;font-weight:700;white-space:nowrap;}
+  .ok-a{border-left-color:var(--accent);} .ok-a .ok-name,.ok-a .ok-km{color:var(--accent);}
+  .ok-b{border-left-color:var(--blue);} .ok-b .ok-name,.ok-b .ok-km{color:var(--blue);}
+  .ok-c{border-left-color:var(--warn);} .ok-c .ok-name,.ok-c .ok-km{color:var(--warn);}
+  .modalx{position:absolute;top:11px;right:11px;width:30px;height:30px;border-radius:50%;
+    border:1px solid var(--line);background:var(--bg);color:var(--muted);font-size:15px;line-height:1;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .modalx:active{border-color:var(--accent);color:var(--accent);}
+
+  .card{background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);
+    border:1px solid var(--line);border-radius:18px;padding:13px;margin-bottom:9px;
+    box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -28px #000;}
+
+  h2{font-family:'Barlow Semi Condensed',monospace;font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 11px;font-weight:500;display:flex;
+    justify-content:space-between;align-items:center;}
+  h2 .tag{color:var(--accent);font-size:10px;letter-spacing:.1em;}
+  h2.okhead{font-weight:700;font-size:12.5px;color:#cdd5e2;}
+
+  /* INPUTS */
+  .row{display:flex;gap:10px;}
+  .field{flex:1;}
+  .field label{display:block;font-family:'Barlow Semi Condensed',monospace;font-size:10px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .field input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:11px;
+    color:var(--txt);font-family:'Barlow Semi Condensed',monospace;font-size:18px;font-weight:600;
+    padding:9px 10px;text-align:center;outline:none;transition:border-color .15s,box-shadow .15s;}
+  .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,242,196,.12);}
+
+  /* CURRENT PACE (inline, kompakt) */
+  .now{display:flex;align-items:baseline;justify-content:center;gap:7px;flex-wrap:wrap;}
+  .nlab{font-family:'Barlow Semi Condensed',monospace;font-size:10px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--muted);}
+  .npace{font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:21px;letter-spacing:-.01em;}
+  .nunit{font-family:'Barlow Semi Condensed',monospace;font-size:12px;color:var(--muted);margin-left:-3px;}
+  .nmeta{font-family:'Barlow Semi Condensed',monospace;font-size:15px;font-weight:600;color:var(--txt);}
+
+  /* WHEELS */
+  .grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:6px;}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+  /* Horizontaler Drum (Ziel-km) — Doppelgeste links/rechts + hoch/runter */
+  .hwlabel{font-family:'Barlow Semi Condensed',monospace;font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:5px;}
+  .hwheel-box{position:relative;width:100%;height:48px;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-x pan-y;background:#07090e;border:1px solid #3a4453;border-radius:11px;}
+  .hwheel{width:100%;height:48px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scroll-snap-type:x mandatory;display:flex;align-items:center;scrollbar-width:none;touch-action:pan-x pan-y;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent);mask-image:linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent);}
+  .hwheel::-webkit-scrollbar{display:none;}
+  .htrack{display:inline-flex;height:48px;align-items:center;}
+  .hitem{height:48px;display:flex;align-items:center;justify-content:center;scroll-snap-align:center;flex-shrink:0;
+    font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:16px;color:var(--txt);transition:color .2s,opacity .2s,transform .2s;user-select:none;font-variant-numeric:tabular-nums;}
+  .hitem.active{color:var(--accent);transform:scale(1.15);}
+  .hitem:not(.active){opacity:.45;transform:scale(.82);}
+  .hmask{position:absolute;top:0;height:48px;width:70px;z-index:5;background:transparent;pointer-events:auto;touch-action:pan-y;}
+  .hmask.left{left:0;} .hmask.right{right:0;}
+  .hlens{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:66px;height:36px;border:1.5px solid var(--accent);border-radius:10px;pointer-events:none;background:rgba(94,242,196,.08);z-index:4;}
+  .v-flip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:66px;height:36px;display:none;overflow:hidden;pointer-events:none;z-index:6;}
+  .hwheel-box.v-active .v-flip{display:block;}
+  .hwheel-box.v-active .hwheel{opacity:0;}
+  .v-flip .v-strip{position:absolute;left:0;right:0;top:-36px;will-change:transform;}
+  .v-flip .v-cell{height:36px;display:flex;align-items:center;justify-content:center;font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:17px;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .v-flip .v-cell.v-cur{color:var(--accent);}
+  .v-flip .v-cell.v-adj{color:#5c6470;}
+  #pulsMaxH .hitem.active{color:#f2c14e;}
+  #pulsMaxH .hlens{border-color:#f2c14e;background:rgba(242,193,78,.10);}
+  #pulsMaxH .v-flip .v-cell.v-cur{color:#f2c14e;}
+  .refhint{font-family:'Barlow Semi Condensed',monospace;font-size:11px;line-height:1.45;color:var(--muted);margin:2px 2px 2px;}
+  .refout{font-family:'Barlow Semi Condensed',monospace;font-size:12px;color:var(--blue);text-align:center;margin-top:9px;font-weight:600;}
+  .laufrow{display:flex;gap:7px;align-items:flex-start;}
+  .laufrow>.wcell{flex:1;min-width:0;}
+  .zeitgrp{flex:1.4;display:flex;flex-direction:column;align-items:center;min-width:0;}
+  .zeitwheels{position:relative;display:flex;align-items:center;justify-content:center;gap:0;width:100%;
+    background:transparent;border:none;border-radius:11px;overflow:hidden;}
+  .zeitwheels>.wcell{flex:0 0 34px;min-width:0;}
+  .zeitwheels>#wHour{flex:0 0 22px;}
+  .wheel.wbare{border:none;background:none;}
+  .wheel.walr .witem{text-align:right;padding-right:3px;transform-origin:right center;}
+  .wheel.wall .witem{text-align:left;padding-left:3px;transform-origin:left center;}
+  .colon{flex:none;font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:17px;color:var(--blue);line-height:1;}
+  .zband{position:absolute;left:3px;right:3px;top:30px;height:30px;pointer-events:none;border-radius:8px;
+    border-top:1px solid rgba(90,169,255,.5);border-bottom:1px solid rgba(90,169,255,.5);
+    background:rgba(90,169,255,.09);}
+  .wcell{display:flex;flex-direction:column;align-items:center;min-width:0;}
+  .wlabel{font-family:'Barlow Semi Condensed',monospace;font-size:9px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:5px;white-space:nowrap;}
+  .grid2 .wlabel,.grid3 .wlabel,.grid4 .wlabel{min-height:26px;display:flex;flex-direction:column;justify-content:center;align-items:center;line-height:1.15;}
+  .grid3 .wlabel{min-height:32px;}
+  .grid4 .wlabel{font-size:8px;letter-spacing:.01em;}
+  .grid4 .wlabel .suplab{font-size:8px;}
+  .effgrid .wlabel, .grid3 .wlabel, .laufrow > .wcell .wlabel, .zeitgrp > .wlabel{width:100%;text-align:center;border-bottom:1px solid #2c3441;padding-bottom:4px;}
+  .wlabel .suplab{font-size:10px;opacity:.85;margin-bottom:1px;}
+  .whint{display:none;}
+  .wheel{position:relative;width:100%;overflow:hidden;border-radius:11px;
+    background:#07090e;border:1px solid #3a4453;
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 26%,#000 74%,transparent);
+    mask-image:linear-gradient(180deg,transparent,#000 26%,#000 74%,transparent);}
+  .effgrid .wcell, .grid3 .wcell, .laufrow > .wcell, .zeitgrp{background:#07090e;border:1px solid #3a4453;border-radius:12px;padding:6px 3px;}
+  .effgrid .wheel, .grid3 .wheel, .laufrow > .wcell .wheel{border:none;background:transparent;}
+  .wscroll{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;touch-action:pan-y;overscroll-behavior:contain;}
+  .wscroll::-webkit-scrollbar{display:none;}
+  .witem{scroll-snap-align:center;text-align:center;font-family:'Barlow Semi Condensed',monospace;
+    font-weight:700;font-size:15px;color:var(--txt);}
+  .wband{position:absolute;left:4px;right:4px;pointer-events:none;border-radius:8px;
+    border-top:1px solid rgba(94,242,196,.45);border-bottom:1px solid rgba(94,242,196,.45);
+    background:rgba(94,242,196,.06);}
+  .wheel.wblue .wband{border-top-color:rgba(90,169,255,.5);border-bottom-color:rgba(90,169,255,.5);
+    background:rgba(90,169,255,.09);}
+  .presetlab{font-family:'Barlow Semi Condensed',monospace;font-size:9px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--muted);text-align:center;margin-top:12px;}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px;}
+  .preset{font-family:'Barlow Semi Condensed',monospace;font-size:10px;color:var(--muted);
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 9px;cursor:pointer;}
+  .preset:active{border-color:var(--accent);color:var(--accent);}
+  #rexRow{margin:0;}
+  .rexwrap{display:flex;align-items:center;justify-content:center;gap:18px;margin:6px 0 10px;}
+  .rexfine{width:58px;flex:none;}
+  .rex{font-family:'Barlow Semi Condensed',monospace;color:var(--muted);
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 8px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:1px;min-width:52px;}
+  .rex b{font-size:12.5px;font-weight:700;line-height:1.15;}
+  .rex i{font-size:9.5px;font-weight:600;font-style:normal;opacity:.55;letter-spacing:.04em;font-variant-numeric:tabular-nums;}
+  .rex.active{border-color:var(--accent);color:var(--accent);background:rgba(94,242,196,.08);}
+  .pbasis{font-family:'Barlow Semi Condensed',monospace;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:108px;}
+  .pbasis b{font-size:12px;font-weight:700;line-height:1.15;}
+  .pbasis i{font-size:9px;font-weight:600;font-style:normal;opacity:.55;letter-spacing:.03em;}
+  .pbasis[data-basis="hfmax"].active{border-color:var(--hfmaxcol);color:var(--hfmaxcol);background:rgba(242,193,78,.12);}
+  .pbasis[data-basis="hfr"].active{border-color:var(--hfrcol);color:var(--hfrcol);background:rgba(177,140,255,.10);}
+
+  /* RESULT */
+  .result{text-align:center;}
+  .result .lab{font-family:'Barlow Semi Condensed',monospace;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--muted);}
+  .result .big{font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:40px;line-height:1;
+    margin:0;letter-spacing:-.02em;text-shadow:0 0 22px var(--glow);}
+  .hero{display:flex;align-items:center;justify-content:center;gap:13px;margin:5px 0 2px;}
+  .herometa{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;}
+  .pace2{font-family:'Barlow Semi Condensed',monospace;font-size:15px;color:var(--txt);margin:0;}
+  .delta{font-family:'Barlow Semi Condensed',monospace;font-size:12px;font-weight:500;margin:0;}
+  .chips{display:flex;gap:6px;margin-top:11px;}
+  .chips3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .effgrid{align-items:start;}
+  .effcell{display:flex;flex-direction:column;gap:7px;min-width:0;}
+  .effcell .chip{margin-top:auto;}
+  .chip{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:7px 4px;text-align:center;min-width:0;}
+  .chip .t{font-family:'Barlow Semi Condensed',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  .chip .v{font-family:'Barlow Semi Condensed',monospace;font-size:15px;font-weight:700;margin-top:2px;white-space:nowrap;}
+  .effgrid .chip .t{font-size:9px;letter-spacing:.02em;white-space:nowrap;}
+  .ti{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;vertical-align:middle;border-radius:50%;background:rgba(90,169,255,.2);border:1px solid rgba(90,169,255,.6);color:var(--blue);font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:9px;line-height:1;text-transform:none;margin-left:3px;position:relative;top:-1px;}
+  .ichip:active .ti{background:rgba(90,169,255,.42);}
+  .shoebtn{display:inline-flex;align-items:center;gap:8px;cursor:pointer;background:var(--panel2);border:1px solid #3a4453;border-radius:11px;padding:8px 14px;font-family:'Inter',sans-serif;font-size:11.5px;color:var(--muted);}
+  .shoebtn b{color:var(--blue);font-weight:600;}
+  .shoebtn:active{border-color:var(--blue);}
+  .shoebtn .ic{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:rgba(90,169,255,.18);border:1px solid rgba(90,169,255,.6);color:var(--blue);font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:12px;line-height:1;}
+  .ichip{position:relative;cursor:pointer;}
+  .ichip:active{border-color:var(--blue);}
+  .chipi{position:absolute;top:5px;right:6px;display:flex;align-items:center;justify-content:center;width:18px;height:18px;padding-top:1px;border-radius:50%;background:rgba(90,169,255,.18);border:1px solid rgba(90,169,255,.55);color:var(--blue);font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:13px;line-height:1;}
+  .ichip:active .chipi{background:rgba(90,169,255,.38);}
+  .windbreak{display:none;flex-direction:row;justify-content:center;align-items:flex-start;gap:20px;width:100%;margin:8px 0 2px;}
+  .windcell{align-self:end;}
+  .windbreak span{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:'Barlow Semi Condensed',monospace;font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);min-width:0;}
+  .windbreak span b{font-family:'Barlow Semi Condensed',monospace;font-size:13px;font-weight:700;white-space:nowrap;}
+
+  /* Lesbarkeit: Beschriftungen in Inter (klar in kleiner Schrift), Spalten-Überschriften größer */
+  .kicker,h2,h2 .tag,.field label,.nlab,.hwlabel,.wlabel,.wlabel .suplab,.presetlab,.result .lab,.lab,.chip .t,.windbreak span,summary{font-family:'Inter',sans-serif;}
+  .wlabel{font-size:10.5px;letter-spacing:.005em;}
+  .wlabel .suplab{font-size:10.5px;letter-spacing:.005em;opacity:.9;}
+  .hwlabel{font-size:11px;letter-spacing:.02em;}
+  .chip .t{font-size:10px;letter-spacing:.02em;}
+  .windbreak span{font-size:9.5px;letter-spacing:.02em;}
+  .windbreak span b{font-size:15px;}
+  .windcap{display:none;text-align:center;margin-top:5px;font-family:'Inter',sans-serif;font-size:9px;letter-spacing:.01em;color:var(--muted);line-height:1.4;}
+  .divline{height:1px;background:var(--line);margin:12px 0 4px;}
+
+  table{width:100%;border-collapse:collapse;}
+  td{font-family:'Barlow Semi Condensed',monospace;padding:8px 4px;border-bottom:1px solid var(--line);}
+  tr:last-child td{border-bottom:none;}
+  td.d{color:var(--muted);font-size:15px;letter-spacing:.03em;text-align:left;}
+  td.r{text-align:right;font-weight:700;font-size:23px;letter-spacing:-.01em;}
+  td.p{text-align:right;color:var(--muted);font-size:11px;}
+  td.hr{text-align:right;color:var(--hrcol);font-size:11.5px;font-weight:500;white-space:nowrap;}
+  td.rng{text-align:right;}
+  .rngwrap{display:inline-block;text-align:right;}
+  .pcrange{font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:18px;letter-spacing:-.01em;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .pcrange .u,.hrrange .uh{font-size:11px;font-weight:400;letter-spacing:0;font-variant-numeric:normal;display:inline-block;width:2.4em;text-align:right;}
+  .pcrange .u{color:var(--muted);}
+  .hrrange{color:var(--hrcol);font-size:16px;font-weight:600;white-space:nowrap;margin-top:1px;font-variant-numeric:tabular-nums;}
+  tr.bhead td{padding:0 0 3px 0;border:none;}
+  .bhlab{color:var(--hrcol);font-size:9.5px;font-weight:700;letter-spacing:.06em;font-family:'Inter',sans-serif;}
+  .hrrange .uh{color:var(--hrcol);opacity:.7;}
+  .rgrid{display:inline-grid;grid-template-columns:auto auto auto auto;justify-items:center;align-items:baseline;font-family:'Barlow Semi Condensed',monospace;font-variant-numeric:tabular-nums;}
+  .rgrid .rt{font-weight:700;font-size:18px;letter-spacing:-.01em;line-height:1.2;}
+  .rgrid .rp{color:var(--hrcol);font-weight:600;font-size:15px;line-height:1.3;}
+  .rgrid .rsep{padding:0 2px;}
+  .rgrid .run{font-size:11px;font-weight:400;color:var(--muted);width:2.4em;text-align:right;justify-self:end;font-variant-numeric:normal;}
+  .rgrid .run.rup{color:var(--hrcol);opacity:.7;}
+  .curvebtn{display:block;margin:12px auto 2px;padding:8px 16px;border-radius:999px;background:rgba(232,149,172,.12);border:1px solid rgba(232,149,172,.45);color:#e895ac;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.04em;cursor:pointer;}
+  .curvebtn:active{background:rgba(232,149,172,.22);}
+  .curveread{display:grid;grid-template-columns:1fr auto 1fr;align-items:baseline;column-gap:8px;font-family:'Barlow Semi Condensed',monospace;margin:0 0 12px;font-variant-numeric:tabular-nums;}
+  .curveread2{text-align:center;font-family:'Barlow Semi Condensed',monospace;font-size:14px;color:#b18cff;margin:-6px 0 12px;font-variant-numeric:tabular-nums;}
+  .curveread .cr-l{text-align:right;font-size:19px;}
+  .curveread .cr-m{text-align:center;font-size:19px;white-space:nowrap;}
+  .curveread .cr-r{text-align:left;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .curveread .un{font-size:12px;color:var(--muted);font-weight:400;}
+  .curveread .sep{color:var(--line);font-weight:400;}
+  .curvehint{margin-top:12px;font-family:'Inter',sans-serif;font-size:10px;color:var(--muted);text-align:center;line-height:1.45;}
+  .capi{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(232,149,172,.18);border:1px solid rgba(232,149,172,.6);color:#e895ac;font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:11px;line-height:1;margin-left:6px;vertical-align:middle;}
+  tr.base td.d{color:var(--accent);font-weight:700;}
+  tr.base td.r{color:var(--accent);}
+  tr.base td.p{color:var(--accent);opacity:.75;}
+  td.r .u{font-size:12px;font-weight:400;color:var(--muted);margin-left:3px;}
+  tr.thr td.d{color:var(--blue);font-weight:700;font-size:17px;}
+  tr.thr td.r{color:var(--blue);}
+  tr.thr td.r .thrtag{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.8;margin-right:7px;vertical-align:middle;}
+  tr.thr td.p{color:var(--blue);opacity:.85;}
+  .vdotrow{display:flex;align-items:baseline;justify-content:center;gap:8px;margin:6px 0 6px;}
+  .vdotnum{font-family:'Barlow Semi Condensed',monospace;font-weight:700;font-size:42px;line-height:1;color:var(--blue);}
+  .vdoth{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:14px;}
+  .vdotcap{font-family:'Inter',sans-serif;font-size:9px;letter-spacing:.01em;color:var(--muted);text-align:center;margin-top:9px;line-height:1.4;}
+
+  details{border-top:1px solid var(--line);margin-top:4px;}
+  summary{list-style:none;cursor:pointer;padding:14px 2px 4px;font-family:'Barlow Semi Condensed',monospace;
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+    display:flex;justify-content:space-between;align-items:center;}
+  summary::-webkit-details-marker{display:none;}
+  summary .pl{color:var(--accent);font-size:22px;font-weight:700;line-height:1;width:22px;text-align:center;}
+  .refdetails summary .pl{position:relative;display:inline-block;box-sizing:border-box;width:28px;height:28px;
+    border-radius:8px;border:1px solid var(--blue);background:rgba(90,169,255,.28);font-size:0;
+    transition:background .15s,transform .08s;}
+  .refdetails summary .pl::before,.refdetails summary .pl::after{content:"";position:absolute;top:50%;left:50%;
+    background:var(--blue);border-radius:1px;}
+  .refdetails summary .pl::before{width:12px;height:2px;transform:translate(-50%,-50%);}
+  .refdetails summary .pl::after{width:2px;height:12px;transform:translate(-50%,-50%);}
+  .refdetails[open] summary .pl::after{display:none;}
+  .refdetails summary:active .pl{transform:scale(.92);background:rgba(90,169,255,.4);}
+  .formula{font-family:'Barlow Semi Condensed',monospace;font-size:12px;line-height:2;color:#c4ccd8;
+    background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0 4px;white-space:pre-wrap;}
+  .formula b{color:var(--accent);font-weight:700;}
+  .reset{width:100%;background:none;border:1px solid var(--line);border-radius:12px;color:var(--muted);
+    font-family:'Barlow Semi Condensed',monospace;font-size:12px;letter-spacing:.1em;padding:12px;margin-top:6px;cursor:pointer;}
+  .reset:active{border-color:var(--warn);color:var(--warn);}
+  footer{text-align:center;color:var(--muted);font-size:10.5px;margin-top:12px;line-height:1.6;font-family:'Barlow Semi Condensed',monospace;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">Höhenmeter · Gewicht · Schuhe · Windschatten · Wind</div>
+    <div class="htitle">
+      <h1>Laufzeit-Rechner</h1>
+      <button class="infobtn" id="infoBtn" aria-label="Info">i</button>
+    </div>
+    <div class="infopop" id="infoPop"><div class="modaltitle">So geht's</div>Referenzlauf (Strecke, Zeit, Gewicht) eingeben, dann den Ziellauf mit Höhenmetern, Wind, Gewicht, Schuhen und Windschatten — die neue Zeit erscheint unten.<br><br><b style="color:var(--txt)">Ermüdungswiderstand</b> — wie gut du dein Tempo über die Distanz hältst. Eine Eigenschaft des Läufers, gilt in <b>beide</b> Richtungen:<br>• <b style="color:var(--accent)">Hoch (Faktor 4,60, k≈1,06):</b> hält das Tempo bis ins Ziel, läuft lange Strecken überproportional stark.<br>• <b style="color:var(--accent)">Mittel (Faktor 4,66, k≈1,07):</b> normaler Tempoverlust.<br>• <b style="color:var(--accent)">Gering (Faktor 4,80, k≈1,09):</b> stark auf der Kurzstrecke, fällt lang etwas ab.<br><br><b style="color:var(--blue)">Der Faktor</b> ist die 10 km→Marathon-Umrechnung: bei gleicher 10-km-Zeit ergibt sich die Marathonzeit aus der 10-km-Zeit multipliziert mit dem Faktor. <b style="color:var(--accent)">Beispiel:</b> 48 min auf 10 km × 4,66 ≈ 3:44 h im Marathon. „Überproportional" ist relativ gemeint — absolut läuft jeder die längere Strecke langsamer.<br><br>Ist dein <b>Ziel kürzer</b> als die Referenz, dreht sich die Wirkung um: hoher Widerstand liefert dann die langsamere Schätzung.<br><br><b style="color:var(--blue)">Wind</b> meint den <b>gefühlten</b> Wind (was dich anbläst), nicht den Wetterbericht-Wert — den spürst du beim Laufen nur teilweise.<br><br><b style="color:var(--blue)">Training muss zur Zieldistanz passen:</b> Rechnerisch lässt sich aus einer sehr kurzen Strecke (z. B. 2 km) eine Marathonzeit ableiten — umsetzen kannst du das aber nur, wenn dein Training auf die Zieldistanz ausgelegt ist. Ohne die langen Läufe fehlt die nötige Grundlagenausdauer: Dann schaffst du die Distanz gar nicht erst, oder die Hochrechnung stimmt nicht, weil deine Ermüdung weit größer ausfällt als angenommen. Die Schätzung gilt also nur für eine Distanz, auf die du wirklich vorbereitet bist.<br><br>Vorhersage-Modell, keine Bestzeit-Garantie.</div>
+  </header>
+
+  <!-- 0 · PULS -->
+  <div class="card">
+    <h2>Puls</h2>
+    <div class="hwlabel">Aktueller maximal Puls</div>
+    <div class="hwheel-box" id="pulsMaxH">
+      <div class="hlens"></div>
+      <div class="hwheel"><div class="htrack"></div></div>
+      <div class="v-flip"><div class="v-strip"><div class="v-cell v-adj"></div><div class="v-cell v-cur"></div><div class="v-cell v-adj"></div></div></div>
+      <div class="hmask left"></div><div class="hmask right"></div>
+    </div>
+    <div class="hwlabel" style="margin-top:15px">Ruhepuls</div>
+    <div class="hwheel-box" id="pulsRestH">
+      <div class="hlens"></div>
+      <div class="hwheel"><div class="htrack"></div></div>
+      <div class="v-flip"><div class="v-strip"><div class="v-cell v-adj"></div><div class="v-cell v-cur"></div><div class="v-cell v-adj"></div></div></div>
+      <div class="hmask left"></div><div class="hmask right"></div>
+    </div>
+    <div class="hwlabel" style="margin-top:16px">Puls-Basis für Prozente</div>
+    <div class="presets" id="pulsBasisRow">
+      <span class="pbasis" data-basis="hfmax"><b>% HFmax</b><i>vom Maximum</i></span>
+      <span class="pbasis" data-basis="hfr"><b>% HF-Reserve</b><i>Karvonen</i></span>
+    </div>
+  </div>
+
+  <!-- 1 · LAUF + AKTUELLE PACE -->
+  <div class="card">
+    <h2>Referenzlauf</h2>
+    <div class="laufrow">
+      <div class="wcell" id="wDist"></div>
+      <div class="zeitgrp">
+        <div class="wlabel">Zeit</div>
+        <div class="zeitwheels">
+          <div class="zband"></div>
+          <div class="wcell" id="wHour"></div>
+          <span class="colon" id="colonH">:</span>
+          <div class="wcell" id="wMin"></div>
+          <span class="colon">:</span>
+          <div class="wcell" id="wSec"></div>
+        </div>
+      </div>
+      <div class="wcell" id="wMass"></div>
+    </div>
+    <div class="presetlab">Strecke</div>
+    <div class="presets" id="distPresets">
+      <span class="preset" data-dist="5">5 km</span>
+      <span class="preset" data-dist="10">10 km</span>
+      <span class="preset" data-dist="21.1">Halb</span>
+      <span class="preset" data-dist="42.2">Marathon</span>
+    </div>
+    <div class="divline" style="margin:11px 0 9px"></div>
+    <div class="now">
+      <span class="nlab">Jetzt</span>
+      <span class="npace" id="nowPace">—</span>
+      <span class="nunit">/km</span>
+      <span class="nmeta" id="nowMeta">&nbsp;</span>
+    </div>
+    <details class="refdetails">
+      <summary><span>Referenzlauf-Bedingungen</span><span class="pl">+</span></summary>
+      <div class="refhint">Nur falls dein Referenzlauf nicht neutral war — diese Bedingungen werden herausgerechnet (Standard: alles 0 = neutral).</div>
+      <div class="grid3">
+        <div class="wcell" id="wHref"></div>
+        <div class="wcell" id="wWindRef"></div>
+        <div class="wcell" id="wSchattenRef"></div>
+      </div>
+      <div class="chips" id="refChips" style="margin-top:10px">
+        <div class="chip"><div class="t">Höhe</div><div class="v" id="cHref">±0,0 s/km</div></div>
+        <div class="chip ichip" id="windInfoBtnRef"><div class="t">Wind<span class="ti">i</span></div><div class="v" id="cWindRef">±0,0 s/km</div></div>
+        <div class="chip ichip" id="draftInfoBtnRef"><div class="t">Schatten<span class="ti">i</span></div><div class="v" id="cDraftRef">±0,0 s/km</div></div>
+      </div>
+      <div class="refout" id="refOut"></div>
+    </details>
+  </div>
+
+  <!-- 3 · ZIELLAUF -->
+  <div class="card">
+    <h2>Ziellauf</h2>
+    <div class="hwlabel">Strecke km</div>
+    <div class="hwheel-box" id="distZielH">
+      <div class="hlens"></div>
+      <div class="hwheel"><div class="htrack"></div></div>
+      <div class="v-flip"><div class="v-strip"><div class="v-cell v-adj"></div><div class="v-cell v-cur"></div><div class="v-cell v-adj"></div></div></div>
+      <div class="hmask left"></div><div class="hmask right"></div>
+    </div>
+    <div class="presets" id="distZielPresets" style="margin-top:8px">
+      <span class="preset" data-distz="5">5 km</span>
+      <span class="preset" data-distz="10">10 km</span>
+      <span class="preset" data-distz="21.1">Halb</span>
+      <span class="preset" data-distz="42.2">Marathon</span>
+    </div>
+    <div class="grid4 effgrid" style="margin-top:8px">
+      <div class="effcell"><div class="wcell" id="wGrade"></div><div class="chip ichip" id="heightInfoBtn"><div class="t">Höhe<span class="ti">i</span></div><div class="v" id="cHeight">—</div></div></div>
+      <div class="effcell"><div class="wcell" id="wDm"></div><div class="chip ichip" id="weightInfoBtn"><div class="t">Gewicht<span class="ti">i</span></div><div class="v" id="cWeight">—</div></div></div>
+      <div class="effcell"><div class="wcell" id="wSchatten"></div><div class="chip ichip" id="draftInfoBtn"><div class="t">Schatten<span class="ti">i</span></div><div class="v" id="cDraft">—</div></div></div>
+      <div class="effcell"><div class="wcell" id="wWind"></div><div class="chip ichip" id="windInfoBtn"><div class="t">Wind<span class="ti">i</span></div><div class="v" id="cWind">—</div></div></div>
+    </div>
+    <div class="presetlab">Windstärke</div>
+    <div class="presets" id="presets">
+      <span class="preset" data-wind="0">Windstill</span>
+      <span class="preset" data-wind="10">Brise</span>
+      <span class="preset" data-wind="20">Frisch</span>
+      <span class="preset" data-wind="30">Steif</span>
+      <span class="preset" data-wind="40">Sturm</span>
+    </div>
+    <div class="windbreak" id="windBreak"></div>
+    <div class="infopop" id="heightInfoPop"><b style="color:var(--txt)">Höhenmeter (Rundkurs):</b> Die gesamte Steigung der Strecke. Bergauf kostet dich mehr Zeit, als du bergab wieder gutmachst — nach unten kannst du nicht beliebig schnell laufen, und das Abbremsen ermüdet. Unterm Strich kosten Höhenmeter daher immer Zeit.<br><br>Im Modell macht das auf einem Rundkurs (gleich rauf wie runter) rund <b style="color:var(--warn)">2 % langsamer je 100 Höhenmeter auf 10 km</b> — bei 4:00/km also etwa +5 s/km. Auf der halben Distanz wirkt dieselbe Steigung doppelt so stark.<br><br>Gedacht für rollige Rundkurse; reine Bergauf- oder reine Gefällestrecken weichen ab.</div>
+    <div class="infopop" id="windInfoPop" style="margin-top:9px"><b style="color:var(--txt)">Gefühlten Wind schätzen:</b> Der Wetterbericht misst in offenem Gelände auf 10 m Höhe. Auf Läuferhöhe kommt davon an — je nach Umgebung:<br>• <b style="color:var(--blue)">Freies Feld · Bahn · Promenade:</b> ~70–80 %<br>• <b style="color:var(--blue)">Mischgebiet · Park · lockere Bebauung:</b> ~55–65 %<br>• <b style="color:var(--blue)">Wald · dichte Stadt:</b> ~40–55 % — aber enge Häuserschluchten können den Wind per Düseneffekt auch <b>verstärken</b>.<br><br>Im Zweifel zählt, was du im Gesicht spürst — nicht die App.</div>
+    <div class="infopop" id="draftInfoPop" style="margin-top:9px"><b style="color:var(--txt)">Windschatten (Vordermänner):</b> Wie viele Läufer direkt vor dir laufen und dich vor dem Fahrtwind abschirmen. Je besser der Windschatten, desto weniger Luftwiderstand — du wirst schneller, ohne mehr Kraft.<br>• <b style="color:var(--accent)">0:</b> freie Anströmung, kein Schutz<br>• <b style="color:var(--accent)">1 Vordermann:</b> ~28 % weniger Luftwiderstand<br>• <b style="color:var(--accent)">2:</b> ~42 %<br>• <b style="color:var(--accent)">3+:</b> ~56 % (dichtes Päckchen / Pulk)<br><br>Bei 4:00/km windstill etwa −2 s/km bei einem Vordermann bis −4 s/km bei drei und mehr Vordermännern. Bei Gegenwind wächst der Nutzen stark, weil dann mehr Luftwiderstand abgeschirmt wird.</div>
+    <div class="infopop" id="weightInfoPop"><b style="color:var(--txt)">Körpergewicht:</b> Weniger Masse heißt weniger, was du gegen die Schwerkraft und bei jedem Schritt beschleunigen musst — du wirst schneller, ohne mehr Kraft.<br><br>Faustregel: rund <b style="color:var(--accent)">2–3 s/km schneller pro Kilogramm weniger</b> (tempo- und distanzabhängig; auf dem Marathon summiert sich das deutlich). Mehrgewicht kostet entsprechend Zeit.<br><br>Gemeint ist Gewicht, das du <b>mitträgst</b> — also auch Trinkgürtel, Weste oder volle Flaschen.<br><br>Schuhgewicht wird <b style="color:var(--blue)">separat</b> behandelt — siehe Schuhe-Info.</div>
+    <div class="infopop" id="shoeInfoPop"><b style="color:var(--txt)">Schuhgewicht:</b> Leichtere Schuhe sparen Zeit, weil du sie bei jedem Schritt neu beschleunigst — Masse direkt am Fuß zählt besonders.<br><br>Faustregel: rund <b style="color:var(--accent)">1 Sekunde pro Gramm und Schuh über einen Marathon</b>. Also bringen z. B. <b>20 g</b> weniger pro Schuh etwa 20 s, <b>10 g</b> rund 10 s. Auf kurzen Strecken entsprechend weniger.<br><br><b style="color:var(--blue)">Wichtig fürs Abwägen:</b> Auf dem Marathon zählt nicht nur Gewicht. Sehr leichte Schuhe bieten oft weniger Stabilität und Dämpfung — auf der langen Distanz kann das am Ende mehr kosten, als das geringere Gewicht einbringt. Anders als bei sehr kurzen Läufen lohnt sich hier ein Schuh, der dich stabil bis ins Ziel trägt.</div>
+    <div class="windcap" id="windCap"></div>
+    <div class="divline" style="margin:15px 0 11px"></div>
+    <div style="display:flex;justify-content:center">
+      <div class="shoebtn" id="shoeInfoBtn"><span class="ic">i</span>Schuhe — <b>Faustregel</b></div>
+    </div>
+  </div>
+
+  <!-- 4 · ERGEBNIS -->
+  <div class="card result">
+    <div class="lab" id="resLab">Neue Zeit</div>
+    <div class="hero">
+      <div class="big" id="timeOut">—</div>
+      <div class="herometa">
+        <div class="pace2" id="paceOut">—</div>
+        <div class="delta" id="deltaOut"></div>
+      </div>
+    </div>
+    <div class="divline"></div>
+    <div class="presetlab" id="rexLab">Ermüdungswiderstand</div>
+    <div class="rexwrap">
+      <div class="presets" id="rexRow">
+        <span class="rex" data-fac="4.60"><b>Hoch</b><i>4,60</i></span>
+        <span class="rex" data-fac="4.66"><b>Mittel</b><i>4,66</i></span>
+        <span class="rex" data-fac="4.80"><b>Gering</b><i>4,80</i></span>
+      </div>
+      <div class="wcell rexfine" id="wRex"></div>
+    </div>
+    <div class="vdoth" style="margin-top:16px;">Wettkampftempi</div>
+    <table id="proj"></table>
+    <div class="vdotcap" id="pulsInfoBtn" style="cursor:pointer"><span style="color:#e895ac;font-size:13px;font-weight:600">Ziel-Puls</span><span class="capi">i</span> (bpm) · Wettkampf-Korridor je nach Dauer · Basis: <span id="capBasisW">% HF-Reserve</span></div>
+    <div class="infopop" id="pulsInfoPop"><div class="modaltitle">Ziel-Puls im Wettkampf</div>Der Korridor ist eine <b>Orientierung für die Mitte des Rennens</b> — Start und Schluss ticken anders:<br><br><b style="color:var(--txt)">Am Start &amp; den ersten Kilometern:</b> Durch Aufregung und Adrenalin liegt der Puls oft deutlich höher, als es zum Tempo passt. Würdest du dich strikt danach richten, liefst du <b>viel zu langsam</b>. Lauf hier nach <b>Tempo und Körpergefühl</b> — der hohe Puls fühlt sich gar nicht so hoch an und pendelt sich nach ein paar Kilometern ein.<br><br><b style="color:var(--txt)">Gegen Ende:</b> Mit zunehmender Ermüdung steigt der Puls (Cardiovascular Drift) und nähert sich bei einem harten Wettkampf — egal auf welcher Distanz — dem <b>Maximalpuls</b>. Der Zielwert ist dann nicht mehr maßgeblich; entscheidend ist, was die Beine noch hergeben.<br><br>Kurz: <b style="color:#e895ac">Puls als grobe Leitplanke, nicht als starre Vorgabe.</b></div>
+  </div>
+
+  <!-- 5 · VDOT & TRAININGSTEMPI -->
+  <div class="card">
+    <div class="vdoth" style="margin-top:0;">VO₂max-Schätzung</div>
+    <div class="vdotrow">
+      <div class="vdotnum" id="vdotVal">—</div>
+    </div>
+    <div class="vdoth">Trainingstempi</div>
+    <table id="vdotPace"></table>
+    <div class="vdotcap">Puls-Basis: <span id="capBasisT">% HF-Reserve</span> · Marathon &amp; Schwelle = Wettkampf-Korridor (wie oben) · Wiederholung anaerob</div>
+    <div class="vdotcap" id="dosInfoBtn" style="cursor:pointer;margin-top:5px"><span style="color:var(--accent);font-size:13px;font-weight:600">Dosierung 80/20</span><span class="capi" style="background:rgba(94,242,196,.18);border-color:rgba(94,242,196,.6);color:var(--accent)">i</span></div>
+    <div class="infopop" id="dosInfoPop"><div class="modaltitle">Dosierung — die 80/20-Regel</div>Die Tabelle zeigt, <b>wie schnell</b> jede Einheit sein soll — genauso wichtig ist, <b>wie viel</b> davon:<br><br><b style="color:var(--accent)">~80 % des Wochenumfangs locker:</b> Regeneration und ruhiger Dauerlauf. Hier entsteht die aerobe Basis — Kapillarisierung, Fettstoffwechsel, Sehnen und Bänder — bei so niedriger Belastung, dass du dich schnell davon erholst.<br><br><b style="color:var(--warn)">~20 % intensiv:</b> zügiger Dauerlauf, Schwelle und Intervall <b>zusammen</b>. Diese Reize bringen den Leistungssprung, kosten aber Substanz — mehr davon steigert vor allem das Verletzungs- und Stagnationsrisiko, nicht die Form.<br><br>Analysen des Trainings von Spitzen-Ausdauersportlern (Seiler u. a.) zeigen dieses Verhältnis quer durch alle Ausdauersportarten. Die meisten Freizeitläufer machen es genau falsch herum: zu viel im mittleren Bereich, zu wenig wirklich locker.<br><br><b>Faustregel:</b> Im Zweifel den lockeren Lauf langsamer machen und die harte Einheit hart lassen — nicht umgekehrt.</div>
+    <button class="curvebtn" id="curveBtn">Puls ↔ Tempo · Kurve öffnen</button>
+  </div>
+
+  <!-- FORMULA -->
+  <!-- KILOMETER-ORAKEL -->
+  <div class="card">
+    <h2 class="okhead">Kilometer-Orakel<button class="infobtn" id="orakelInfoBtn" aria-label="Info">i</button></h2>
+    <div class="orakelintro">Was du an <b>3 Tagen am Stück</b> ohne Überlastung schaffst, zeigt dein Potenzial für einen langen Einzellauf. Trag deinen Tagesschnitt ein — die 3-Tages-Summe steht daneben:</div>
+    <div class="laufrow orakelrow">
+      <div class="oktagbox">
+        <div class="wlabel">Ø pro Tag · km</div>
+        <div class="wcell" id="wTagesref"></div>
+      </div>
+      <div class="oktagbox">
+        <div class="wlabel">Summe · km</div>
+        <div class="wcell" id="wOkSum"></div>
+      </div>
+    </div>
+    <div class="orakellevels">
+      <div class="oklvl ok-a"><div class="ok-info"><span class="ok-name">1 · Wohlfühl-Max</span><span class="ok-desc">Läufst du vermutlich ohne große Probleme durch.</span></div><div class="ok-km" id="ok1">15,0 km</div></div>
+      <div class="oklvl ok-a"><div class="ok-info"><span class="ok-name">2 · Realistisches Ziel</span><span class="ok-desc">Hervorragender Richtwert für einen langen Lauf.</span></div><div class="ok-km" id="ok2">16,0 km</div></div>
+      <div class="oklvl ok-b"><div class="ok-info"><span class="ok-name">3 · Ambitionierter Wert</span><span class="ok-desc">In deiner Reichweite, mit etwas mentalem Biss.</span></div><div class="ok-km" id="ok3">17,0 km</div></div>
+      <div class="oklvl ok-c"><div class="ok-info"><span class="ok-name">4 · Absolute Grenze</span><span class="ok-desc">Maximalwert, erfordert intelligente Einteilung.</span></div><div class="ok-km" id="ok4">20,0 km</div></div>
+    </div>
+    <div class="orakelwarn">⚠ Nur zur Information — keine medizinische oder Trainingsberatung. <b>Höre auf deinen Körper</b> und brich bei Schmerzen, Schwindel oder Erschöpfung sofort ab. Überlastung kann zu ernsten gesundheitlichen Schäden führen.</div>
+    <div class="infopop" id="orakelInfoPop"><div class="modaltitle">Kilometer-Orakel</div>Wenn du eine Strecke an <b>3 aufeinanderfolgenden Tagen</b> ohne Überlastung schaffst, zeigt das eine starke aerobe Basis und schnelle Erholung. Daraus lässt sich dein Potenzial für einen langen <b>Einzellauf</b> abschätzen.<br><br>Gib deinen <b>Tagesschnitt</b> ein (Ø der drei Tage — z. B. 8/12/10 → 10). Daneben steht die 3-Tages-Summe (×3). Die vier Stufen reichen vom sicheren Wohlfühl-Bereich (1,5×) bis zur absoluten Grenze (2,0×) der Tagesdistanz.<br><br><b style="color:var(--accent)">Pacing:</b> Defensiv angehen — ein zu schneller Start rächt sich auf den letzten Kilometern doppelt. Zieltempo ca. 30–45 s/km langsamer als deine gewohnte 3-Tages-Pace.<br><br><b style="color:var(--accent)">Energie:</b> Bei einem Einzellauf fehlt die nächtliche Erholung — ab ca. 60–75 min Belastung proaktiv Kohlenhydrate/Elektrolyte zuführen.<br><br><b style="color:var(--accent)">Mental:</b> Ab Stufe 3 wird es vor allem Kopfsache — teile die Strecke in kleine, überschaubare Abschnitte.<br><br><span style="color:var(--warn)"><b>⚠ Wichtig:</b> Diese Werte sind reine Schätzungen zur Orientierung und ersetzen keine ärztliche oder trainingswissenschaftliche Beratung. Höre auf deinen Körper — bei Schmerzen oder Erschöpfung sofort abbrechen. Überlastung kann zu ernsten gesundheitlichen Schäden führen.</span></div>
+  </div>
+
+  <!-- RESET -->
+  <div class="card" style="padding:14px 17px;">
+    <button class="reset" id="reset">↺ Zurücksetzen</button>
+  </div>
+
+  <footer>
+    Heuristisches Modell · lineare Faktoren · k = biomechanischer Umsetzungsgrad.<br>
+    Für rollige Profile: Faktoren segmentweise über die Höhenmeter integrieren.<br>
+    <span style="color:var(--accent);letter-spacing:.15em;">VERSION 7.41</span>
+  </footer>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modalbox">
+    <button class="modalx" id="modalClose" aria-label="Schließen">✕</button>
+    <div class="modalbody" id="modalBody"></div>
+  </div></div>
+
+<div class="modal" id="curveModal">
+  <div class="modalbox">
+    <button class="modalx" id="curveClose" aria-label="Schließen">✕</button>
+    <div class="modaltitle" style="margin:0 0 12px">Puls → Tempo</div>
+    <div class="curveread" id="curveReadout">— bpm · —:— /km</div>
+    <div class="curveread2" id="curveReadout2"></div>
+    <div id="curveBody"></div>
+    <div class="curvehint">Weiße Kurve = Tempo, violette = Laktat. Zieh den Punkt — beide Werte zu jedem Puls. Zonen farbig hinterlegt, Schwelle = 4 mmol/l.</div>
+  </div></div>
+
+<div class="startgate show" id="startGate">
+  <div class="startgatebox">
+    <div class="modaltitle" style="margin:0 0 14px">Wichtiger Hinweis</div>
+    <p>Diese App liefert ausschließlich <b>rechnerische Schätzwerte zu Informations- und Unterhaltungszwecken</b>. Sie ersetzt keine medizinische, sportmedizinische oder trainingswissenschaftliche Beratung.</p>
+    <p><b style="color:var(--warn)">Höre auf deinen Körper.</b> Brich jede Belastung bei Schmerzen, Schwindel, Atemnot oder Erschöpfung sofort ab. Überlastung kann zu ernsten gesundheitlichen Schäden führen.</p>
+    <p>Kläre Trainingsumfang und Wettkampf-Distanzen im Zweifel ärztlich ab — besonders bei Vorerkrankungen.</p>
+    <p class="muted">Die Nutzung erfolgt auf eigene Verantwortung. Für Schäden, die aus der Nutzung der App oder dem Vertrauen auf ihre Ergebnisse entstehen, wird keine Haftung übernommen.</p>
+    <button class="startbtn" id="startOk">Verstanden &amp; weiter</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const S = { dist:10, hour:0, min:38, sec:0, mass:75, hm:0, dm:0, schatten:0, wind:0, fac:4.66,
+            pulsMax:180, pulsRest:36,
+            hmRef:0, windRef:0, schattenRef:0, distZiel:42.2, tagesref:10, okSumDisp:30, pulsBasis:'hfmax' };
+const MARA_RATIO=42.195/10;                        // 10 km → Marathon
+const facToK=f=>Math.log(f)/Math.log(MARA_RATIO);  // Riegel-Exponent aus dem 10k→Marathon-Faktor
+const DRAFT_PCT=[0,27.8,41.7,55.6];                 // Windschatten-% je Vordermänner: 0/2/3/4 s/km bei 15 km/h
+
+const pace = s => { const m=Math.floor(s/60), x=Math.round(s%60);
+  return (x===60)?`${m+1}:00`:`${m}:${String(x).padStart(2,'0')}`; };
+const hms = s => { s=Math.round(s); const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), x=s%60;
+  return h>0 ? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`
+            : `${m}:${String(x).padStart(2,'0')}`; };
+const num = (v,d) => { const n=parseFloat(String(v).replace(',','.')); return isFinite(n)?n:d; };
+const parseTime = str => { const p=String(str).split(':').map(x=>parseFloat(String(x).replace(',','.')));
+  if(p.length===3) return p[0]*3600+p[1]*60+(p[2]||0);
+  if(p.length===2) return p[0]*60+(p[1]||0);
+  return num(str,0); };
+
+/* ---------- Picker-Walze ---------- */
+const wheels={};
+function makeWheel(mountId,cfg){
+  const {key,label,min,max,step,fmt,hint}=cfg;
+  const CENTER=cfg.blue?'var(--blue)':'var(--accent)';
+  const ITEM=cfg.item||30, VISIBLE=cfg.visible||3, H=ITEM*VISIBLE, pad=(H-ITEM)/2;
+  const vals=[]; for(let v=min; v<=max+1e-9; v+=step) vals.push(parseFloat(v.toFixed(4)));
+  const el=document.getElementById(mountId);
+  el.innerHTML=`${label?`<div class="wlabel">${label}</div>`:''}
+    <div class="wheel${cfg.blue?' wblue':''}${cfg.bare?' wbare':''}${cfg.align==='right'?' walr':cfg.align==='left'?' wall':''}" style="height:${H}px">
+      <div class="wscroll" style="padding:${pad}px 0">${
+        vals.map(v=>`<div class="witem" style="height:${ITEM}px;line-height:${ITEM}px">${fmt(v)}</div>`).join('')
+      }</div>
+      ${(cfg.bare&&!cfg.band)?'':`<div class="wband" style="height:${ITEM}px;top:${pad}px"></div>`}
+    </div>
+    <div class="whint">${hint||''}</div>`;
+  const scroll=el.querySelector('.wscroll');
+  const items=scroll.querySelectorAll('.witem');
+
+  // Darstellung (Skalierung/Opazität nach Scrollposition)
+  function paint(){
+    const c=scroll.scrollTop, center=Math.round(c/ITEM);
+    const lo=Math.max(0,center-5), hi=Math.min(items.length-1,center+5);
+    for(let i=lo;i<=hi;i++){
+      const it=items[i], d=Math.abs(i*ITEM-c)/ITEM;
+      const sc=d<0.5?1.18:Math.max(0.72,1-d*0.17);
+      it.style.opacity=Math.max(0.30,1-d*0.38);
+      it.style.transform=`scale(${sc})`;
+      let col=d<0.5?CENTER:'var(--txt)';
+      if(d<0.5 && cfg.dimZero && vals[i]===0) col='rgba(170,178,192,.34)';   // führende 0 (Stunde) blass
+      it.style.color=col;
+    }
+  }
+
+  // Mechanik wie im Trade-Simulator: eigener Schwung + erzwungenes Einrasten
+  const MAXTOP=()=>scroll.scrollHeight-scroll.clientHeight;
+  const clampTop=y=>Math.max(0,Math.min(MAXTOP(),y));
+  const curIdx=()=>Math.max(0,Math.min(vals.length-1,Math.round(scroll.scrollTop/ITEM)));
+  const setSnap=on=>{ scroll.style.scrollSnapType=on?'y mandatory':'none'; };
+  function commit(){ const i=curIdx(); if(S[key]!==vals[i]){ S[key]=vals[i]; compute(); if(cfg.onChange) cfg.onChange(vals[i]); } }
+
+  const DECAY=0.93, MOM=1.0, MINV=0.18, MAXV=(15*ITEM*(1-DECAY))/16;
+  let anim=null;
+  function cancelAnim(){ if(anim){ cancelAnimationFrame(anim); anim=null; } }
+  function snap(){                       // immer exakt auf die Mitte (Snap aus → setzen → an)
+    setSnap(false);
+    scroll.scrollTop=clampTop(curIdx()*ITEM);
+    requestAnimationFrame(()=>setSnap(true));
+    paint(); commit();
+  }
+  function fling(v0){                     // eigener Abkling-Schwung, danach snap()
+    cancelAnim(); setSnap(false);
+    let v=v0*MOM; if(Math.abs(v)>MAXV) v=Math.sign(v)*MAXV;
+    let last=performance.now();
+    const step=now=>{
+      const dt=now-last; last=now;
+      const ny=clampTop(scroll.scrollTop - v*dt);
+      const edge=(ny<=0||ny>=MAXTOP());
+      scroll.scrollTop=ny; paint(); if(cfg.onMove) cfg.onMove(ny);
+      v*=Math.pow(DECAY,dt/16);
+      if(edge||Math.abs(v)<0.04){ anim=null; snap(); return; }
+      anim=requestAnimationFrame(step);
+    };
+    anim=requestAnimationFrame(step);
+  }
+
+  let startY=0,lastY=0,lastT=0,samples=[],dragging=false;
+  scroll.addEventListener('touchstart',e=>{
+    cancelAnim(); setSnap(false); dragging=true;     // Re-Greifen während des Drehens: laufenden Schwung sofort canceln
+    const t=e.touches[0]; startY=lastY=t.pageY; lastT=Date.now(); samples=[];
+  },{passive:true});
+  scroll.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    const t=e.touches[0], y=t.pageY, now=Date.now(), dy=y-lastY, dt=now-lastT;
+    scroll.scrollTop=clampTop(scroll.scrollTop-dy); paint(); if(cfg.onMove) cfg.onMove(scroll.scrollTop);
+    if(dt>0){ samples.push({v:dy/dt,t:now}); while(samples.length&&now-samples[0].t>80) samples.shift(); }
+    lastY=y; lastT=now;
+  },{passive:false});
+  function endDrag(){
+    if(!dragging) return;
+    dragging=false;
+    const avg=samples.length?samples.reduce((s,x)=>s+x.v,0)/samples.length:0;
+    if(Math.abs(avg)>MINV) fling(avg); else snap();
+  }
+  scroll.addEventListener('touchend',endDrag,{passive:true});
+  scroll.addEventListener('touchcancel',endDrag,{passive:true});
+  scroll.addEventListener('scroll',()=>paint(),{passive:true});   // hält Skalierung aktuell (auch Maus/Trackpad)
+  let wtmr;
+  scroll.addEventListener('wheel',()=>{ clearTimeout(wtmr); wtmr=setTimeout(()=>{ if(!dragging&&!anim) snap(); },120); },{passive:true});
+
+  function setValue(v){
+    let idx=Math.round((v-min)/step);
+    idx=Math.max(0,Math.min(vals.length-1,idx));
+    cancelAnim(); setSnap(false);
+    scroll.scrollTop=idx*ITEM;
+    requestAnimationFrame(()=>setSnap(true));
+    S[key]=vals[idx]; paint();
+  }
+  function setScrollPx(px){ cancelAnim(); setSnap(false); scroll.scrollTop=clampTop(px); paint(); }
+  wheels[key]={setValue,setScrollPx};
+  requestAnimationFrame(()=>setValue(S[key]));
+}
+
+/* ---------- Horizontaler Drum (links/rechts wischen + hoch/runter rasten) ---------- */
+function makeHWheel(mountId,cfg){
+  const {key,min,max,step,fmt,itemWidth=64}=cfg;
+  const box=document.getElementById(mountId);
+  const wheel=box.querySelector('.hwheel'), track=box.querySelector('.htrack');
+  const vals=[]; for(let v=min; v<=max+1e-9; v+=step) vals.push(parseFloat(v.toFixed(4)));
+  track.innerHTML=vals.map(v=>`<div class="hitem" style="width:${itemWidth}px" data-value="${v}">${fmt(v)}</div>`).join('');
+  const items=track.querySelectorAll('.hitem');
+  const setPad=()=>{ const p=Math.max(0,(wheel.clientWidth-itemWidth)/2); track.style.paddingLeft=p+'px'; track.style.paddingRight=p+'px'; };
+
+  const VITEM_H=36, MOM=1.0, DECAY=0.93, MAX_FLING=15, VWIN=80, MINV=0.18, AXIS=8, VSTEP=28, VACC=106;
+  const CG=[92,100,112], CW=cfg.cw||[94,242,196];
+  const lerp=b=>{b=b<0?0:b>1?1:b;return `rgb(${Math.round(CG[0]+(CW[0]-CG[0])*b)},${Math.round(CG[1]+(CW[1]-CG[1])*b)},${Math.round(CG[2]+(CW[2]-CG[2])*b)})`;};
+  const cumSteps=d=>(d/VSTEP)*(1+d/(2*VACC));
+  const clamp=x=>{const mx=wheel.scrollWidth-wheel.clientWidth;return Math.max(0,Math.min(mx,x));};
+  const curIdx=()=>Math.max(0,Math.min(vals.length-1,Math.round(wheel.scrollLeft/itemWidth)));
+  const setSnap=on=>{ wheel.style.scrollSnapType=on?'x mandatory':'none'; };
+
+  let activeIdx=-1;
+  function render(){ const i=curIdx(); if(i===activeIdx)return; if(activeIdx>=0&&items[activeIdx])items[activeIdx].classList.remove('active'); if(items[i])items[i].classList.add('active'); activeIdx=i; }
+  function commit(){ const i=curIdx(); if(S[key]!==vals[i]){ S[key]=vals[i]; compute(); } render(); }
+
+  let animFrame=null;
+  const cancelAnim=()=>{ if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;} };
+  function snap(){ setSnap(true); wheel.scrollTo({left:clamp(curIdx()*itemWidth),behavior:'smooth'}); commit(); }
+  function animate(v0){
+    cancelAnim(); setSnap(false);
+    const maxV0=(MAX_FLING*itemWidth*(1-DECAY))/16;
+    let v=v0*MOM; if(Math.abs(v)>maxV0)v=Math.sign(v)*maxV0;
+    let last=performance.now();
+    const step=now=>{ const dt=now-last; last=now; const ny=clamp(wheel.scrollLeft-v*dt); const edge=(ny===0||ny===wheel.scrollWidth-wheel.clientWidth); wheel.scrollLeft=ny; render(); v*=Math.pow(DECAY,dt/16); if(edge||Math.abs(v)<0.04){snap();animFrame=null;return;} animFrame=requestAnimationFrame(step); };
+    animFrame=requestAnimationFrame(step);
+  }
+
+  // Vertikale Ratsche (Flip-Overlay)
+  const vFlip=box.querySelector('.v-flip'), vStrip=vFlip.querySelector('.v-strip');
+  const cells=vFlip.querySelectorAll('.v-cell'), vUp=cells[0], vCur=cells[1], vDn=cells[2];
+  const itemText=i=>(i>=0&&i<items.length)?items[i].textContent:'';
+  function vRender(ci,dir,frac){
+    vUp.textContent=itemText(ci-1); vCur.textContent=itemText(ci); vDn.textContent=itemText(ci+1);
+    vStrip.style.transform=`translateY(${-dir*frac*VITEM_H}px)`;
+    const inB=(frac-0.4)/0.2;
+    vCur.style.color=lerp(1-inB);
+    if(dir>=0){ vDn.style.color=lerp(inB); vUp.style.color=lerp(0); } else { vUp.style.color=lerp(inB); vDn.style.color=lerp(0); }
+  }
+  const vEnter=()=>{ box.classList.add('v-active'); vRender(curIdx(),1,0); };
+  const vExit=()=>{ box.classList.remove('v-active'); vStrip.style.transform='translateY(0)'; };
+  let _ci=0,_dir=1,_frac=0,_vAnim=null;
+  function vSnapCommit(){
+    if(_vAnim){cancelAnimationFrame(_vAnim);_vAnim=null;}
+    const sFrac=_frac, dir=_dir, ci=_ci, up=sFrac>=0.5, endFrac=up?1:0;
+    let ix=up?ci+dir:ci; ix=Math.max(0,Math.min(vals.length-1,ix));
+    setSnap(true); wheel.scrollLeft=clamp(ix*itemWidth); commit();
+    const t0=performance.now();
+    const stp=now=>{ const k=Math.min(1,(now-t0)/130), e=1-(1-k)*(1-k); vRender(ci,dir,sFrac+(endFrac-sFrac)*e); if(k<1){_vAnim=requestAnimationFrame(stp);} else {_vAnim=null; vExit();} };
+    _vAnim=requestAnimationFrame(stp);
+  }
+
+  let lastX=0,startX=0,startY=0,lastT=0,samples=[],axis=null,vStartIdx=0,vStartY=0;
+  wheel.addEventListener('touchstart',e=>{ cancelAnim(); setSnap(false); const t=e.touches[0]; lastX=startX=t.pageX; startY=t.pageY; lastT=Date.now(); samples=[]; axis=null; vStartIdx=curIdx(); },{passive:true});
+  wheel.addEventListener('touchmove',e=>{
+    e.preventDefault(); const now=Date.now(), t=e.touches[0], x=t.pageX, y=t.pageY;
+    if(axis===null){ const adx=Math.abs(x-startX), ady=Math.abs(y-startY); if(adx>AXIS||ady>AXIS){ axis=ady>adx?'v':'h'; if(axis==='v'){ vStartY=y; vStartIdx=curIdx(); vEnter(); } } }
+    if(axis==='v'){
+      const sd=vStartY-y, mag=cumSteps(Math.abs(sd)), dir=sd<0?-1:1, im=Math.floor(mag); let frac=mag-im, ci=vStartIdx+dir*im, mx=vals.length-1;
+      if(ci<0){ci=0;frac=0;} else if(ci>mx){ci=mx;frac=0;} else if(ci+dir<0||ci+dir>mx){frac=0;}
+      vRender(ci,dir,frac); _ci=ci;_dir=dir;_frac=frac;
+    } else if(axis==='h'){
+      const dx=x-lastX, dt=now-lastT; wheel.scrollLeft=clamp(wheel.scrollLeft-dx); render();
+      if(dt>0){ samples.push({v:dx/dt,t:now}); while(samples.length&&now-samples[0].t>VWIN) samples.shift(); }
+    }
+    lastX=x; lastT=now;
+  },{passive:false});
+  wheel.addEventListener('touchend',()=>{
+    if(axis==='h'){ const avg=samples.length?samples.reduce((s,m)=>s+m.v,0)/samples.length:0; if(Math.abs(avg)>MINV) animate(avg); else snap(); }
+    else if(axis==='v'){ vSnapCommit(); }
+    else snap();
+  },{passive:true});
+  wheel.addEventListener('touchcancel',()=>{ if(axis==='v')vExit(); snap(); },{passive:true});
+  wheel.addEventListener('scroll',()=>render(),{passive:true});
+  let wtmr;
+  wheel.addEventListener('wheel',e=>{ e.preventDefault(); wheel.scrollLeft+=e.deltaY; clearTimeout(wtmr); wtmr=setTimeout(()=>{ if(axis===null&&!animFrame)snap(); },130); },{passive:false});
+
+  function setValue(v){ let idx=Math.round((v-min)/step); idx=Math.max(0,Math.min(vals.length-1,idx)); setSnap(false); wheel.scrollLeft=idx*itemWidth; requestAnimationFrame(()=>setSnap(true)); S[key]=vals[idx]; render(); }
+  wheels[key]={setValue};
+  setPad();
+  requestAnimationFrame(()=>{ setPad(); setValue(S[key]); });
+  window.addEventListener('resize',()=>{ const v=S[key]; setPad(); setValue(v); });
+}
+function compute(){
+  const D=S.dist, t=S.hour*3600+S.min*60+S.sec, m=S.mass, out=id=>document.getElementById(id);
+  const ch=out('colonH'); if(ch) ch.style.color=S.hour===0?'rgba(170,178,192,.34)':'var(--blue)';   // "0:" zurücknehmen
+  { const tr=S.tagesref, okf=v=>v.toFixed(1).replace('.',',')+' km';   // Kilometer-Orakel: Stufen aus Tagesschnitt
+    const so=(id,x)=>{const e=out(id); if(e)e.textContent=okf(x);};
+    so('ok1',tr*1.5); so('ok2',tr*1.6); so('ok3',tr*1.7); so('ok4',tr*2); }
+
+  if(!(D>0)||!(t>0)){
+    out('nowPace').textContent='—'; out('nowMeta').textContent='Strecke & Zeit eingeben';
+    out('timeOut').textContent='—'; out('paceOut').textContent='—'; out('deltaOut').innerHTML='';
+    ['cHeight','cWeight','cDraft','cWind','cHref','cWindRef','cDraftRef','vdotVal'].forEach(i=>{const e=out(i); if(e)e.textContent='—';}); out('proj').innerHTML=''; {const e=out('vdotPace'); if(e)e.innerHTML='';} return;
+  }
+
+  const K=0.667, A_UP=0.04, A_DN=0.02, KA=0.00178, REX=facToK(S.fac);
+  document.querySelectorAll('#rexRow .rex').forEach(c=>c.classList.toggle('active', Math.abs(parseFloat(c.dataset.fac)-S.fac)<0.005));
+  document.querySelectorAll('#pulsBasisRow .pbasis').forEach(c=>c.classList.toggle('active', c.dataset.basis===S.pulsBasis));
+  document.documentElement.style.setProperty('--hrcol', S.pulsBasis==='hfmax'?'#f2c14e':'#b18cff');
+  {const _bl=S.pulsBasis==='hfmax'?'% HFmax (× Max)':'% HF-Reserve (Karvonen)';const _w=document.getElementById('capBasisW');if(_w)_w.textContent=_bl;const _t=document.getElementById('capBasisT');if(_t)_t.textContent=_bl;}
+  const fHeight = (Hm,dist) => 1+((A_UP-A_DN)/10)*Hm/dist;   // Höhen-Faktor (Rundkurs), je nach Distanz
+  function aero(vv, schatten, ww){                          // Windschatten- & Wind-Faktor bei Tempo vv
+    const Dr=1-schatten/100;
+    const C0  = 1 + KA*vv*vv;                               // windstill, ungeschützt
+    const Cd0 = 1 + KA*Dr*vv*vv;                            // windstill, im Schatten
+    const Chead = 1 + KA*Dr*(vv+ww)*(vv+ww);                // Gegenwind-Schenkel
+    const dt = vv-ww;                                       // Anström-Differenz im Rücken
+    const Ctail = 1 + KA*Dr*Math.sign(dt)*dt*dt;            // Rückenwind: Vorzeichen-Quadrat -> Wind>Tempo gibt Schub
+    return { fDraft: Cd0/C0, fWind: 0.5*(Chead+Ctail)/Cd0 };
+  }
+
+  const Dz=S.distZiel;                                       // Zieldistanz
+  const p0=t/D;
+  out('nowPace').textContent=pace(p0);
+  out('nowMeta').textContent=`${hms(t)} · ${D} km`;
+
+  // 1) Referenzlauf-Bedingungen herausrechnen → neutrale Pace (flach, windstill, ohne Schatten) bei D
+  const v0=1000/p0;                                          // gemessenes Tempo im Referenzlauf
+  const refA=aero(v0, DRAFT_PCT[S.schattenRef], S.windRef/3.6);
+  const fRef=fHeight(S.hmRef,D)*refA.fDraft*refA.fWind;
+  const pNeutral=p0/fRef;
+  // Beiträge der Referenz-Bedingungen auf den gemessenen km-Schnitt (von neutral aufwärts; +s = war langsamer)
+  const pHr=pNeutral*fHeight(S.hmRef,D), pWr=pHr*refA.fWind, pDr=pWr*refA.fDraft;
+  const dHref=pHr-pNeutral, dWref=pWr-pHr, dDref=pDr-pWr;
+  const refOn = (S.hmRef||S.windRef||S.schattenRef);
+  const ro=out('refOut');
+  if(ro) ro.textContent = refOn ? `Neutrale Basis-Pace ≈ ${pace(pNeutral)} /km` : 'Referenzlauf gilt als neutral';
+
+  // 2) neutrale Pace per Riegel auf die Zieldistanz skalieren
+  const pZn=pNeutral*Math.pow(Dz/D, REX-1);
+
+  // 3) Ziel-Bedingungen auf die Ziel-Pace anwenden (Höhe über Dz; Tempo = neutrales Ziel-Tempo)
+  const vN=1000/pZn;
+  const fH=fHeight(S.hm,Dz);
+  const fG=1/(1-K*S.dm/m);                                   // Gewicht (Ziel vs. jetzt)
+  const raceA=aero(vN, DRAFT_PCT[S.schatten], S.wind/3.6);
+  const fDraft=raceA.fDraft, fWind=raceA.fWind;
+
+  const pA=pZn*fH, pB=pA*fG, pC=pB*fDraft, pNew=pC*fWind;
+  const dH=pA-pZn, dG=pB-pA;                                 // Höhe, Gewicht
+
+  // Wind nach Schenkeln OHNE Schatten (reiner Wind, mit Asymmetrie) + Windschatten-Nutzen beim aktuellen Wind
+  const ww=S.wind/3.6, sgn=x=>Math.sign(x)*x*x, C0w=1+KA*vN*vN;
+  const headF=(1+KA*(vN+ww)*(vN+ww))/C0w;                    // Gegenwind-Schenkel, ungeschützt
+  const tailF=(1+KA*sgn(vN-ww))/C0w;                         // Rückenwind-Schenkel, ungeschützt (signiert)
+  const windNetF=0.5*(headF+tailF);
+  const dHead=pB*(headF-1), dTail=pB*(tailF-1), dW=pB*(windNetF-1);  // Gegenwind-Verlust / Rückenwind-Gewinn / Netto (ohne Schatten)
+  const dS=pNew-pB*windNetF;                                 // Windschatten-Nutzen beim aktuellen Wind (wächst mit Gegenwind)
+
+  const pFinal=pNew;   // Schuhgewicht ist kein eigenes Rad mehr — nur noch Faustregel im Schuhe-Info
+
+  out('resLab').textContent=`Neue Zeit · ${Dz%1===0?Dz:Dz.toFixed(1).replace('.',',')} km`;
+  out('timeOut').textContent=hms(pFinal*Dz);
+  out('paceOut').textContent=`${pace(pFinal)} /km`;
+
+  const diff=pFinal-pZn;                                       // reiner Bedingungs-Effekt auf der Zieldistanz
+  out('deltaOut').innerHTML = Math.abs(diff)<0.05
+    ? ''
+    : `<span style="color:${diff>0?'var(--warn)':'var(--accent)'}">${diff>0?'+':'−'}${Math.abs(diff).toFixed(1).replace('.',',')} s/km · ${diff>0?'langsamer':'schneller'}</span>`;
+
+  const setChip=(id,v)=>{const e=out(id);
+    const z=Math.abs(v)<0.05;
+    e.textContent = z ? '±0,0 s/km' : `${v>0?'+':'−'}${Math.abs(v).toFixed(1).replace('.',',')} s/km`;
+    e.style.color=z?'var(--muted)':(v>0?'var(--warn)':'var(--accent)');};
+  setChip('cHeight',dH); setChip('cWeight',dG); setChip('cDraft',dS); setChip('cWind',dW);
+  setChip('cHref',dHref); setChip('cWindRef',dWref); setChip('cDraftRef',dDref);   // Referenz-Bedingungen
+  const wb=out('windBreak'), wc=out('windCap');
+  if(Math.abs(S.wind)<0.5){ if(wb)wb.style.display='none'; if(wc)wc.style.display='none'; }
+  else{
+    const fc=x=>{const z=Math.abs(x)<0.05; const c=z?'var(--muted)':(x>0?'var(--warn)':'var(--accent)');
+      const s=z?'±0,0':`${x>0?'+':'−'}${Math.abs(x).toFixed(1).replace('.',',')}`;
+      return `<b style="color:${c}">${s}</b>`;};
+    if(wb){ wb.style.display='flex';
+      wb.innerHTML=`<span>Gegenwind${fc(dHead)}</span><span>Rückenwind${fc(dTail)}</span><span>Netto${fc(dW)}</span>`; }
+    if(wc){ wc.style.display='block';
+      const g=`${dHead>0?'+':'−'}${Math.abs(dHead).toFixed(1).replace('.',',')}`;
+      const r=`${dTail<0?'− ':'+ '}${Math.abs(dTail).toFixed(1).replace('.',',')}`;
+      wc.innerHTML=`Gegen-/Rückenwind je Streckenhälfte · Netto = (${g} ${r}) ÷ 2 über die ganze Runde`; }
+  }
+
+  const Tanchor=pFinal*Dz;
+  const d60=Dz*Math.pow(3600/Tanchor,1/REX), p60=3600/d60;   // 60-Minuten-Lauf rückwärts → Distanz + Schwellentempo
+  // Wettkampf-Puls (Karvonen): Dauer → %HFR-Korridor (Stützpunkte aus der Kurve) → bpm-Bereich
+  const HFR_D=[3,6,12,20,30,45,105,165,225,300], HFR_LO=[97.5,95.8,94.2,93.3,92.7,90.7,86.3,83.8,78.7,70.2], HFR_HI=[99.0,97.3,95.7,94.8,94.3,92.3,87.7,85.2,80.3,71.8];
+  const HMAX_LO=[98.0,96.5,95.2,94.5,94.0,92.3,88.5,87.0,81.8,74.8], HMAX_HI=[99.3,97.8,96.5,95.8,95.3,93.7,89.9,88.4,83.2,76.2];
+  const hrr=Math.max(0,S.pulsMax-S.pulsRest);
+  const isMax=S.pulsBasis==='hfmax';
+  const cLO=isMax?HMAX_LO:HFR_LO, cHI=isMax?HMAX_HI:HFR_HI;
+  const okBasis=isMax?S.pulsMax>0:hrr>0;
+  const toBpm=p=>isMax?Math.round(p/100*S.pulsMax):Math.round(S.pulsRest+p/100*hrr);
+  const MARA_FIX=isMax?[86.0,87.4]:[82.6,84.0];   /* DEV-Kalibrierung: Marathon fest ~87% (oben 87,4% → 157 @180), Decke 87,5% */
+  const pulsCell=(durSec,fix,raw)=>{
+    let lo,hi;
+    if(fix){ lo=fix[0]; hi=fix[1]; }
+    else{ const t=durSec/60, n=HFR_D.length-1;
+      if(t<=HFR_D[0]){lo=cLO[0];hi=cHI[0];}
+      else if(t>=HFR_D[n]){lo=cLO[n];hi=cHI[n];}
+      else{ let i=0; while(t>HFR_D[i+1])i++; const f=(t-HFR_D[i])/(HFR_D[i+1]-HFR_D[i]);
+        lo=cLO[i]+f*(cLO[i+1]-cLO[i]); hi=cHI[i]+f*(cHI[i+1]-cHI[i]); } }
+    if(!okBasis) return raw?null:'—';
+    if(raw) return [toBpm(lo),toBpm(hi)];
+    return `${toBpm(lo)}–${toBpm(hi)}`;
+  };
+  /* ===== DEV (temporär) – oberer Korridorwert als %, hinter den bpm. Block + 2 Aufrufe unten zum Entfernen ===== */
+  const devPct=(durSec,fix)=>{
+    if(!okBasis) return '';
+    let hi;
+    if(fix){ hi=fix[1]; }
+    else{ const t=durSec/60, n=HFR_D.length-1;
+      if(t<=HFR_D[0]) hi=cHI[0];
+      else if(t>=HFR_D[n]) hi=cHI[n];
+      else{ let i=0; while(t>HFR_D[i+1])i++; const f=(t-HFR_D[i])/(HFR_D[i+1]-HFR_D[i]); hi=cHI[i]+f*(cHI[i+1]-cHI[i]); } }
+    const hiBpm=toBpm(hi), pct=isMax?hiBpm/S.pulsMax*100:(hiBpm-S.pulsRest)/hrr*100;
+    return `<span style="opacity:.9;font-weight:700;font-size:13px;color:#f2c14e"> · ${Math.round(pct)}%</span>`;
+  };
+  /* ===== /DEV ===== */
+  let rows=[['1 km',1],['5 km',5],['10 km',10],['15 km',15],['Halbmarathon',21.0975],['Marathon',42.195]].map(([n,d])=>({n,d}));
+  if(!rows.some(r=>Math.abs(r.d-Dz)<0.05)) rows.push({n:`${Dz} km`,d:Dz});
+  rows.push({n:'60 min · Schwelle',d:d60,p:p60,thr:true});
+  rows.sort((a,b)=>a.d-b.d);
+  const bhead='<tr class="bhead"><td class="d"></td><td class="r"></td><td class="p"></td><td class="hr"><span class="bhlab">'+(isMax?'HFmax':'HF-Reserve')+'</span></td></tr>';
+  out('proj').innerHTML=bhead+rows.map(r=>{
+    if(r.thr) return `<tr class="thr"><td class="d">${r.d.toFixed(1).replace('.',',')} km</td><td class="r"><span class="thrtag">Schwelle</span>60:00</td><td class="p">${pace(r.p)}/km</td><td class="hr">${pulsCell(3600)}${devPct(3600)/*DEV*/}</td></tr>`;
+    const T=Tanchor*Math.pow(r.d/Dz,REX), ziel=Math.abs(r.d-Dz)<0.05, fx=Math.abs(r.d-42.195)<0.05?MARA_FIX:null;
+    return `<tr class="${ziel?'base':''}"><td class="d">${r.n}${ziel?' · Ziel':''}</td><td class="r">${hms(T)}</td><td class="p">${pace(T/r.d)}/km</td><td class="hr">${pulsCell(T,fx)}${devPct(T,fx)/*DEV*/}</td></tr>`;
+  }).join('');
+
+  // VDOT (Daniels-Gilbert) aus der neutralisierten Referenzleistung + Trainingstempi
+  const tNeuMin=pNeutral*D/60, vMpm=D*1000/tNeuMin;
+  const vo2=-4.60+0.182258*vMpm+0.000104*vMpm*vMpm;
+  const pctMax=0.8+0.1894393*Math.exp(-0.012778*tNeuMin)+0.2989558*Math.exp(-0.1932605*tNeuMin);
+  const VDOT=vo2/pctMax; window.__curVDOT=VDOT;
+  const paceAt=frac=>{const o=frac*VDOT,A=0.000104,B=0.182258,C=-(4.60+o);
+    const vv=(-B+Math.sqrt(B*B-4*A*C))/(2*A); return 60000/vv;};   // s/km
+  const ev=out('vdotVal'); if(ev) ev.textContent=VDOT.toFixed(1).replace('.',',');
+  const ep=out('vdotPace'); if(ep){
+    const rR=3.5/VDOT, hfrOf=f=>Math.max(0,Math.min(1,(f-rR)/(1-rR))), bpmOf=f=>Math.round(S.pulsRest+hfrOf(f)*hrr);
+    const tMar=Tanchor*Math.pow(42.195/Dz,REX);
+    const MPp=tMar/42.195, HMp=(Tanchor*Math.pow(21.0975/Dz,REX))/21.0975;   // Marathon-/HM-Pace s/km
+    window.__curMP=MPp; window.__curHM=HMp;   // für die Puls↔Tempo↔Laktat-Kurve
+    const EASY={ 'zügig':[(HMp+MPp)/2, MPp*1.12], 'ruhig':[MPp*1.20, MPp*1.34], 'sehr locker':[MPp*1.34, MPp*1.46] };  // lockere Zonen MP-verankert (proportional)
+    const EASYHF={ 'zügig':[80,88.5], 'ruhig':[71,78], 'sehr locker':[62,70] };   // feste %HFmax-Bänder (Puls)
+    const fracOfPace=p=>{const v=60000/p; return (-4.60+0.182258*v+0.000104*v*v)/VDOT;};   // Pace -> %VO2max
+    const fracMP=fracOfPace(MPp), hrCouple=p=>Math.round((0.87+0.64*(fracOfPace(p)-fracMP))*S.pulsMax);  // Puls an Pace gekoppelt: Anker Marathon ~87% HFmax, Swain-Steigung; gleiche bpm in beiden Modi
+    ep.innerHTML='<tr class="bhead"><td class="d"></td><td class="rng"><span class="bhlab">'+(isMax?'HFmax':'HF-Reserve')+'</span></td></tr>'+[['Regeneration',0.56,0.64,'sehr locker',null,69,73],['Dauerlauf',0.64,0.71,'ruhig',null,73,79],['Dauerlauf',0.72,0.78,'zügig',null,80,89],['Marathon',0.805,0.825,'MRP',tMar,null,null],['Schwelle',0.86,0.895,'Tempo',3600,null,null],['Intervall',0.96,1.00,'VO₂max',null,93,98],['Wiederholung',1.07,1.07,'Speed',null,null,null]]
+      .map(z=>{const single=z[1]===z[2]; const ez=EASY[z[3]];
+        let tA,tB,pA,pB;
+        if(z[0]==='Marathon'){tA=pace(tMar/42.195);tB=pace(tMar/42.195+2);}
+        else if(ez){tA=pace(ez[0]);tB=pace(ez[1]);}
+        else if(!single){tA=pace(paceAt(z[2]));tB=pace(paceAt(z[1]));}
+        if(ez){const hf=EASYHF[z[3]];pA=Math.round(hf[1]/100*S.pulsMax);pB=Math.round(hf[0]/100*S.pulsMax);}
+        else if(z[4]!=null){const pr=pulsCell(z[4], z[0]==='Marathon'?MARA_FIX:null, true);if(pr){pA=pr[1];pB=pr[0];}}
+        else if(!single){pA=isMax?toBpm(z[6]):bpmOf(z[2]);pB=isMax?toBpm(z[5]):bpmOf(z[1]);}
+        if(single) return `<tr><td class="d">${z[0]} · ${z[3]}</td><td class="rng"><div class="rngwrap"><div class="pcrange">${pace(paceAt(z[1]))}<span class="u">/km</span></div><div class="hrrange">anaerob<span class="uh"></span></div></div></td></tr>`;
+        if(!okBasis||pA==null) return `<tr><td class="d">${z[0]} · ${z[3]}</td><td class="rng"><div class="rngwrap"><div class="pcrange">${tA}–${tB}<span class="u">/km</span></div><div class="hrrange">—<span class="uh"></span></div></div></td></tr>`;
+        return `<tr><td class="d">${z[0]} · ${z[3]}</td><td class="rng"><div class="rgrid"><span class="rt">${tA}</span><span class="rt rsep">–</span><span class="rt">${tB}</span><span class="run">/km</span><span class="rp">${pA}</span><span class="rp rsep">–</span><span class="rp">${pB}</span><span class="run rup">bpm</span></div></td></tr>`;}).join('');
+  }
+}
+
+/* ---------- Init ---------- */
+makeWheel('wDist',{key:'dist',label:'Strecke km',min:1,max:50,step:0.1,fmt:v=>`${v.toFixed(1)}`,blue:true});
+makeWheel('wHour',{key:'hour',label:'',min:0,max:9,step:1,fmt:v=>`${v}`,blue:true,bare:true,dimZero:true});
+makeWheel('wMin',{key:'min',label:'',min:0,max:59,step:1,fmt:v=>String(v).padStart(2,'0'),blue:true,bare:true});
+makeWheel('wSec',{key:'sec',label:'',min:0,max:59,step:1,fmt:v=>String(v).padStart(2,'0'),blue:true,bare:true});
+makeWheel('wMass',{key:'mass',label:'Gewicht kg',min:40,max:130,step:0.1,fmt:v=>`${v.toFixed(1)}`,blue:true});
+
+makeWheel('wGrade',{key:'hm',label:'Höhenmeter',min:0,max:1000,step:10,fmt:v=>`${v} m`});
+makeWheel('wDm',{key:'dm',label:'Δ Gewicht',min:-30,max:30,step:0.1,fmt:v=>`${v>0?'+':''}${v.toFixed(1)}kg`});
+makeWheel('wSchatten',{key:'schatten',label:'<span class="suplab">Windschatten</span>Vordermänner',min:0,max:3,step:1,fmt:v=>['0','1','2','3+'][v]});
+makeWheel('wWind',{key:'wind',label:'<span class="suplab">gefühlt</span>Wind km/h',min:0,max:40,step:1,fmt:v=>`${v}`});
+makeHWheel('distZielH',{key:'distZiel',min:1,max:50,step:0.1,itemWidth:64,fmt:v=>v.toFixed(1).replace('.',',')});
+makeHWheel('pulsMaxH',{key:'pulsMax',min:120,max:220,step:1,itemWidth:60,fmt:v=>`${v}`,cw:[242,193,78]});
+makeHWheel('pulsRestH',{key:'pulsRest',min:30,max:100,step:1,itemWidth:60,fmt:v=>`${v}`});
+
+makeWheel('wHref',{key:'hmRef',label:'Höhenmeter',min:0,max:1000,step:10,fmt:v=>`${v} m`,blue:true});
+makeWheel('wWindRef',{key:'windRef',label:'<span class="suplab">gefühlt</span>Wind km/h',min:0,max:40,step:1,fmt:v=>`${v}`,blue:true});
+makeWheel('wSchattenRef',{key:'schattenRef',label:'<span class="suplab">Windschatten</span>Vordermänner',min:0,max:3,step:1,fmt:v=>['0','1','2','3+'][v],blue:true});
+
+makeWheel('wRex',{key:'fac',label:'',min:4.30,max:5.20,step:0.01,item:24,fmt:v=>v.toFixed(2).replace('.',',')});
+makeWheel('wTagesref',{key:'tagesref',label:'',min:3,max:30,step:1,fmt:v=>`${v}`,blue:true,bare:true,band:true,
+  onMove:px=>{ if(wheels.okSumDisp) wheels.okSumDisp.setScrollPx(px); },
+  onChange:v=>{ if(wheels.okSumDisp) wheels.okSumDisp.setValue(v*3); }});
+makeWheel('wOkSum',{key:'okSumDisp',label:'',min:9,max:90,step:3,fmt:v=>`${v}`,blue:true,bare:true,band:true,
+  onMove:px=>{ if(wheels.tagesref) wheels.tagesref.setScrollPx(px); },
+  onChange:v=>{ S.tagesref=v/3; if(wheels.tagesref) wheels.tagesref.setValue(v/3); compute(); }});
+
+document.getElementById('presets').addEventListener('click',e=>{
+  const t=e.target.closest('.preset'); if(!t)return;
+  if(t.dataset.hm!==undefined)       wheels.hm.setValue(parseFloat(t.dataset.hm));
+  if(t.dataset.dm!==undefined)       wheels.dm.setValue(parseFloat(t.dataset.dm));
+  if(t.dataset.schatten!==undefined) wheels.schatten.setValue(parseFloat(t.dataset.schatten));
+  if(t.dataset.wind!==undefined)     wheels.wind.setValue(parseFloat(t.dataset.wind));
+  compute();
+});
+
+document.getElementById('distPresets').addEventListener('click',e=>{
+  const t=e.target.closest('.preset'); if(!t)return;
+  wheels.dist.setValue(parseFloat(t.dataset.dist));
+  compute();
+});
+
+document.getElementById('distZielPresets').addEventListener('click',e=>{
+  const t=e.target.closest('.preset'); if(!t)return;
+  wheels.distZiel.setValue(parseFloat(t.dataset.distz));
+  compute();
+});
+
+document.getElementById('rexRow').addEventListener('click',e=>{
+  const t=e.target.closest('.rex'); if(!t)return;
+  wheels.fac.setValue(parseFloat(t.dataset.fac)); compute();   // Schnellwahl stellt das Feinrad
+});
+
+document.getElementById('pulsBasisRow').addEventListener('click',e=>{
+  const t=e.target.closest('.pbasis'); if(!t)return;
+  S.pulsBasis=t.dataset.basis; compute();
+});
+
+document.getElementById('reset').addEventListener('click',()=>{
+  wheels.dist.setValue(10); wheels.hour.setValue(0); wheels.min.setValue(38); wheels.sec.setValue(0); wheels.mass.setValue(75);
+  wheels.distZiel.setValue(42.2);
+  wheels.pulsMax.setValue(180); wheels.pulsRest.setValue(36);
+  wheels.hm.setValue(0); wheels.dm.setValue(0); wheels.schatten.setValue(0); wheels.wind.setValue(0);
+  wheels.hmRef.setValue(0); wheels.windRef.setValue(0); wheels.schattenRef.setValue(0);
+  wheels.tagesref.setValue(10); wheels.okSumDisp.setValue(30);
+  S.pulsBasis='hfmax';
+  compute();
+});
+document.querySelectorAll('details').forEach(d=>d.addEventListener('toggle',e=>{
+  e.target.querySelector('.pl').textContent=e.target.open?'−':'+';
+}));
+
+const modal=document.getElementById('modal'), modalBody=document.getElementById('modalBody');
+const openModal=srcId=>{ const s=document.getElementById(srcId); if(s&&modal&&modalBody){ modalBody.innerHTML=s.innerHTML; modal.classList.add('show'); } };
+const closeModal=()=>{ if(modal) modal.classList.remove('show'); };
+[['infoBtn','infoPop'],['heightInfoBtn','heightInfoPop'],['weightInfoBtn','weightInfoPop'],['windInfoBtn','windInfoPop'],['draftInfoBtn','draftInfoPop'],['windInfoBtnRef','windInfoPop'],['draftInfoBtnRef','draftInfoPop'],['shoeInfoBtn','shoeInfoPop'],['orakelInfoBtn','orakelInfoPop'],['pulsInfoBtn','pulsInfoPop'],['dosInfoBtn','dosInfoPop']].forEach(([bId,srcId])=>{
+  const b=document.getElementById(bId); if(b) b.addEventListener('click',e=>{ e.stopPropagation(); openModal(srcId); });
+});
+const mc=document.getElementById('modalClose'); if(mc) mc.addEventListener('click',e=>{ e.stopPropagation(); closeModal(); });
+if(modal) modal.addEventListener('click',e=>{ if(e.target===modal) closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ---------- Puls -> Tempo Kurve ---------- */
+const paceAtV=(frac,vdot)=>{const o=frac*vdot,A=0.000104,B=0.182258,C=-(4.60+o);const dd=B*B-4*A*C;if(dd<=0||frac<=0)return NaN;return 60000/((-B+Math.sqrt(dd))/(2*A));};
+const fmtP=s=>{if(!isFinite(s))return '—:—';s=Math.round(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+function renderCurve(){
+  const host=document.getElementById('curveBody'),read=document.getElementById('curveReadout');
+  if(!host)return;
+  const vdot=window.__curVDOT||0,pMax=S.pulsMax,pRest=S.pulsRest,HR=pMax-pRest,r=3.5/(vdot||52);
+  if(!vdot||HR<5||!window.__curMP){host.innerHTML='<div style="padding:26px 6px;text-align:center;color:var(--muted);font-family:Inter,sans-serif;font-size:12px">Bitte Referenzlauf sowie Max- und Ruhepuls setzen.</div>';if(read)read.textContent='';return;}
+  const MP=window.__curMP||0, HM=window.__curHM||MP;
+  const fracOfP=p=>{const v=60000/p; return (-4.60+0.182258*v+0.000104*v*v)/vdot;};   // Pace -> %VO2max
+  const fracMP=MP>0?fracOfP(MP):0.81;
+  const fracOf=b=>Math.max(0.30,Math.min(1.05, fracMP+((b/pMax)-0.87)/0.64));   // bpm -> %VO2max (wie Tabelle: Anker MP ~87% HFmax, Swain-Steigung)
+  const paceOf=b=>paceAtV(fracOf(b),vdot);
+  const bpmOfFrac=f=>(0.87+0.64*(f-fracMP))*pMax;
+  const W=320,H=248,mL=15,mR=12,mT=12,mB=28;
+  const bpmMin=Math.round(bpmOfFrac(0.45)),bpmMax=pMax;
+  const pFast=paceOf(bpmMax),pSlow=paceOf(bpmMin);
+  const X=b=>mL+(b-bpmMin)/(bpmMax-bpmMin)*(W-mL-mR);
+  const Y=p=>mT+(p-pFast)/(pSlow-pFast)*(H-mT-mB);
+  const ZB=[['Regeneration','Reg',fracOfP(MP*1.46),fracOfP(MP*1.34),'165,170,180'],['ruhiger DL','ruhig',fracOfP(MP*1.34),fracOfP(MP*1.20),'90,169,255'],['zügiger DL','zügig',fracOfP(MP*1.12),fracOfP((HM+MP)/2),'90,209,255'],['Schwelle','Schw',0.86,0.895,'255,210,74'],['Intervall','Int',0.96,1.00,'255,122,89'],['Marathon','Mar',fracOfP(MP+2),fracOfP(MP),'94,242,196',true]];
+  const laBase=1.0,_f1=0.815,_l1=2.5,_f2=0.8775,_l2=4.0;
+  const laK=Math.log((_l2-laBase)/(_l1-laBase))/(_f2-_f1),laA=(_l1-laBase)/Math.exp(laK*_f1);
+  const laFor=fr=>laBase+laA*Math.exp(laK*fr);
+  const laMax=Math.max(8,Math.ceil(laFor(fracOf(bpmMax))/2)*2);
+  const Yl=la=>(H-mB)-(la/laMax)*(H-mT-mB);
+  let svg='';
+  for(let i=0;i<=4;i++){const p=pFast+(pSlow-pFast)*i/4,y=Y(p);svg+='<line x1="'+mL+'" y1="'+y.toFixed(1)+'" x2="'+(W-mR)+'" y2="'+y.toFixed(1)+'" stroke="rgba(255,255,255,.05)"/>';svg+='<text x="0" y="'+(y+3).toFixed(1)+'" fill="#5a6270" font-size="7.5" font-family="Inter,sans-serif">'+fmtP(p)+'</text>';}
+  [4,8,12].forEach(v=>{if(v>laMax)return;const y=Yl(v);svg+='<text x="'+(W-1)+'" y="'+(y+3).toFixed(1)+'" fill="#9a86c8" font-size="7.5" text-anchor="end" font-family="Inter,sans-serif">'+v+'</text>';});
+  {const y4=Yl(4);svg+='<line x1="'+mL+'" y1="'+y4.toFixed(1)+'" x2="'+(W-mR)+'" y2="'+y4.toFixed(1)+'" stroke="#b18cff" stroke-width="1" stroke-dasharray="2 4" opacity="0.45"/>';}
+  ZB.forEach(z=>{let x0=Math.max(mL,X(bpmOfFrac(z[2]))),x1=Math.min(W-mR,X(bpmOfFrac(z[3])));if(x1<=x0)return;const hl=z[5];svg+='<rect x="'+x0.toFixed(1)+'" y="'+mT+'" width="'+(x1-x0).toFixed(1)+'" height="'+(H-mT-mB)+'" fill="rgba('+z[4]+','+(hl?0.62:0.40)+')"'+(hl?' stroke="rgb('+z[4]+')" stroke-width="1.3"':'')+'/>';const lx=(z[1]==='zügig')?x0+(x1-x0)*0.26:(x0+x1)/2;svg+='<text x="'+lx.toFixed(1)+'" y="'+(H-mB+13)+'" fill="rgb('+z[4]+')" font-size="'+(hl?11.5:11)+'" font-weight="'+(hl?800:600)+'" text-anchor="middle" font-family="Inter,sans-serif">'+z[1]+'</text>';});
+  const xRE=X(bpmOfFrac(ZB[0][3]));svg+='<line x1="'+xRE.toFixed(1)+'" y1="'+mT+'" x2="'+xRE.toFixed(1)+'" y2="'+(H-mB)+'" stroke="#0a0c10" stroke-width="3"/>';
+  let dl='';for(let i=0;i<=64;i++){const b=bpmMin+(bpmMax-bpmMin)*i/64;dl+=(i?'L':'M')+X(b).toFixed(1)+' '+Yl(laFor(fracOf(b))).toFixed(1);}
+  svg+='<path d="'+dl+'" fill="none" stroke="#b18cff" stroke-width="1.8"/>';
+  let d='';for(let i=0;i<=64;i++){const b=bpmMin+(bpmMax-bpmMin)*i/64;d+=(i?'L':'M')+X(b).toFixed(1)+' '+Y(paceOf(b)).toFixed(1);}
+  svg+='<path d="'+d+'" fill="none" stroke="#cdd5e2" stroke-width="2"/>';
+  svg+='<line id="curveV" x1="0" y1="'+mT+'" x2="0" y2="'+(H-mB)+'" stroke="#e895ac" stroke-width="1.5" stroke-dasharray="3 3"/>';
+  svg+='<circle id="curveDot" r="5.5" fill="#0a0c10" stroke="#e895ac" stroke-width="2.5"/>';
+  svg+='<circle id="curveDotLa" r="4.5" fill="#0a0c10" stroke="#b18cff" stroke-width="2.5"/>';
+  host.innerHTML='<svg id="curveSvg" viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;touch-action:none;position:relative;left:-5px">'+svg+'</svg>';
+  const el=document.getElementById('curveSvg'),vl=document.getElementById('curveV'),dot=document.getElementById('curveDot'),dotLa=document.getElementById('curveDotLa'),read2=document.getElementById('curveReadout2');
+  const zinfo=f=>{for(const z of ZB)if(z[5]&&f>=z[2]&&f<=z[3])return {n:z[0],c:'rgb('+z[4]+')'};for(const z of ZB)if(f>=z[2]&&f<=z[3])return {n:z[0],c:'rgb('+z[4]+')'};return {n:'Übergang',c:'var(--muted)'};};
+  const place=b=>{b=Math.max(bpmMin,Math.min(bpmMax,b));const x=X(b),p=paceOf(b),f=fracOf(b),la=laFor(f);vl.setAttribute('x1',x);vl.setAttribute('x2',x);dot.setAttribute('cx',x);dot.setAttribute('cy',Y(p));dotLa.setAttribute('cx',x);dotLa.setAttribute('cy',Yl(la));const z=zinfo(f);if(read)read.innerHTML='<span class="cr-l"><b style="color:#e895ac">'+Math.round(b)+'</b> <span class="un">bpm</span> <span class="sep">·</span></span><span class="cr-m"><b style="color:var(--accent)">'+fmtP(p)+'</b> <span class="un">/km</span></span><span class="cr-r"><span class="sep">·</span> <b style="color:'+z.c+'">'+z.n+'</b></span>';if(read2)read2.innerHTML='Laktat ≈ <b>'+la.toFixed(1).replace('.',',')+'</b> mmol/l';};
+  const evt=e=>{const rc=el.getBoundingClientRect(),cx=(e.clientX!=null?e.clientX:(e.touches&&e.touches[0]?e.touches[0].clientX:0));let xr=Math.max(mL,Math.min(W-mR,(cx-rc.left)/rc.width*W));place(bpmMin+(xr-mL)/(W-mL-mR)*(bpmMax-bpmMin));};
+  let drag=false;
+  el.addEventListener('pointerdown',e=>{drag=true;try{el.setPointerCapture(e.pointerId);}catch(_){}evt(e);});
+  el.addEventListener('pointermove',e=>{if(drag)evt(e);});
+  el.addEventListener('pointerup',()=>{drag=false;});
+  el.addEventListener('pointercancel',()=>{drag=false;});
+  place(Math.round(bpmOfFrac(0.815)));
+}
+const curveModal=document.getElementById('curveModal'), curveBtn=document.getElementById('curveBtn');
+if(curveBtn) curveBtn.addEventListener('click',e=>{ e.stopPropagation(); renderCurve(); if(curveModal) curveModal.classList.add('show'); });
+const curveClose=document.getElementById('curveClose'); if(curveClose) curveClose.addEventListener('click',e=>{ e.stopPropagation(); if(curveModal) curveModal.classList.remove('show'); });
+if(curveModal) curveModal.addEventListener('click',e=>{ if(e.target===curveModal) curveModal.classList.remove('show'); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&curveModal) curveModal.classList.remove('show'); });
+
+if('scrollRestoration' in history) history.scrollRestoration='manual';
+window.addEventListener('load',()=>{ for(const k in wheels) wheels[k].setValue(S[k]); });
+
+const startGate=document.getElementById('startGate'), startOk=document.getElementById('startOk');
+if(startOk) startOk.addEventListener('click',()=>{ if(startGate) startGate.classList.remove('show'); });
+
+compute();
+</script>
+</body>
+</html>
