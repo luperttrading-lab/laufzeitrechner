@@ -10,6 +10,7 @@
   --paper:#f7f3e9; --card:#fffdf8; --ink:#142d49; --text2:#33495d; --muted:#617080;
   --gold:#a8721a; --line:#d9d1c2; --tile:#e9eef2; --track:#e0e3e4;
   --hl-bg:#f8edcf; --hl-line:#e8cc8b; --note-bg:#f5f0e4; --link:#174d78;
+  --air:#3d78b8; --press:#b8452a;
   --ok:#1f6f4a; --ok-bg:#dff0e6; --warn:#8a5a00; --warn-bg:#fbe9c2; --fix:#1d4f8a; --fix-bg:#dde9f6;
   --display:Georgia,"Times New Roman",serif;
   --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -20,6 +21,7 @@
     --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
     --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --track:#2b3d52;
     --hl-bg:#2a2616; --hl-line:#5c4a1c; --note-bg:#1a2a3d; --link:#8fc0ea;
+    --air:#7fb8f0; --press:#ff8e70;
     --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12; --fix:#9cc4f0; --fix-bg:#172f4a;
   }
 }
@@ -28,7 +30,8 @@
   --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
   --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --track:#2b3d52;
   --hl-bg:#2a2616; --hl-line:#5c4a1c; --note-bg:#1a2a3d; --link:#8fc0ea;
-  --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12; --fix:#9cc4f0; --fix-bg:#172f4a;
+  --air:#7fb8f0; --press:#ff8e70;
+    --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12; --fix:#9cc4f0; --fix-bg:#172f4a;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.45 var(--body);font-variant-numeric:tabular-nums}
@@ -51,6 +54,20 @@ input[type=range]:focus-visible,button:focus-visible,a:focus-visible{outline:2px
 .chip{display:flex;flex-direction:column;align-items:center;gap:2px;font:700 .8rem var(--body);color:var(--ink);background:var(--tile);border:2px solid transparent;border-radius:10px;padding:6px 2px 7px;cursor:pointer}
 .chip svg{width:100%;max-width:58px;height:auto}
 .chip[aria-pressed="true"]{border-color:var(--gold);background:var(--hl-bg)}
+.grp{font-size:.74rem;font-weight:700;letter-spacing:.03em;color:var(--muted);margin:12px 0 0}
+.grp + .chips{margin-top:5px}
+.flows{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+.flow{margin:0;background:var(--tile);border-radius:12px;padding:8px 8px 10px}
+.flow svg{border-radius:8px}
+.flow figcaption{font-size:.82rem;color:var(--text2);margin-top:6px}
+.flow figcaption b{display:block;color:var(--ink)}
+.sl{fill:none;stroke:var(--muted);stroke-width:.9;opacity:.75}
+.wk{fill:var(--air);opacity:.2}
+.vx{fill:none;stroke:var(--air);stroke-width:1.2;stroke-linecap:round}
+.pl{fill:var(--press);font:800 13px var(--body);text-anchor:middle}
+.mi{fill:var(--ink);font:800 16px var(--body);text-anchor:middle}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--text2)}
+.legend i{font-style:normal;font-weight:800}
 .figrow{display:flex;gap:14px;align-items:center;margin-top:12px}
 .figrow svg{flex:none;width:112px;height:auto;background:var(--tile);border-radius:10px}
 .figrow strong{display:block;margin-bottom:3px}
@@ -72,6 +89,7 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}
 th,td{text-align:left;padding:8px 7px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 td.num,th.num{text-align:right;white-space:nowrap}
+th.num{white-space:normal}
 tr.cur td{background:var(--hl-bg);font-weight:700}
 .pill{display:inline-block;border-radius:99px;padding:2px 9px;font-size:.74rem;font-weight:700;white-space:nowrap}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}
@@ -83,6 +101,7 @@ ul,ol{margin:0;padding-left:20px} li{margin:7px 0;max-width:70ch}
 a{color:var(--link);overflow-wrap:anywhere}
 footer{color:var(--muted);font-size:.8rem}
 @media(max-width:700px){
+  .flows{grid-template-columns:1fr 1fr}
   .grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.metrics .metric:first-child{grid-column:1/-1}main{padding:16px 16px 30px}
   table{font-size:.84rem} th,td{padding:8px 4px}
   table.stack thead{display:none}
@@ -112,7 +131,8 @@ footer{color:var(--muted);font-size:.8rem}
     <label for="drag">Weniger Luftwiderstand durch die Formation</label>
     <div class="val"><span id="dragOut">57,3 %</span></div>
     <input type="range" id="drag" min="0" max="85" step="0.1" value="57.3">
-    <div class="chips" id="chips"></div>
+    <div id="chips"></div>
+    <div class="small" style="margin-top:8px">Vergleiche nur innerhalb einer Gruppe. Zwischen den Gruppen unterscheiden sich Körpermodell und Abstand.</div>
     <div class="figrow">
       <div id="figBig"></div>
       <div>
@@ -141,7 +161,30 @@ footer{color:var(--muted);font-size:.8rem}
 </div>
 
 <section class="panel">
-  <h2>3 · Gleiche Formation bei anderem Tempo</h2>
+  <h2>3 · Warum die Formationen so verschieden wirken</h2>
+  <p>Die Prozentwerte stammen aus zwei Arbeitsgruppen mit verschiedenen Körpermodellen und Abständen. Vergleichbar sind sie nur innerhalb einer Gruppe. Dort zeigt sich beide Male dasselbe: Läufer hinter dir helfen.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Gruppe</th><th class="num">niemand hinter dir</th><th class="num">Läufer hinter dir</th></tr></thead>
+      <tbody>
+        <tr><td>Schickhofer &amp; Hanson</td><td class="num">70,1 %<br><span class="small">ein Pacer vorn</span></td><td class="num">75,6 %<br><span class="small">plus einer dahinter</span></td></tr>
+        <tr><td>Polidori und Beaumont</td><td class="num">57,3 %<br><span class="small">Dreierreihe vorn</span></td><td class="num">63,3 %<br><span class="small">Kette, drei dahinter</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="flows" id="flows"></div>
+  <div class="legend">
+    <span><i style="color:var(--press)">+</i> Luft staut sich, Überdruck bremst</span>
+    <span><i>−</i> Sog im Rücken, zieht zurück</span>
+    <span><i style="color:var(--air)">▮</i> langsame, verwirbelte Luft</span>
+    <span>Linien: Luft strömt von oben nach unten an dir vorbei</span>
+  </div>
+  <div class="note"><strong>Prinzipskizzen, keine Simulation.</strong> Die Bilder zeigen die Mechanismen, die Schickhofer und Hanson beschreiben. Für die Dreierreihe und die Fünferkette liegt nur das Abstract vor, deren Strömung ist deshalb nicht gezeichnet.</div>
+  <p class="small" style="margin-top:12px" id="distLine"></p>
+</section>
+
+<section class="panel">
+  <h2>4 · Gleiche Formation bei anderem Tempo</h2>
   <p class="small">Luftanteil ist der Anteil des Luftwiderstands am Energiebedarf im Solo-Lauf. Er fällt mit dem Quadrat des Tempos. Weil langsamere Läufer länger unterwegs sind, bleibt der Zeitvorteil in Sekunden trotzdem ähnlich groß.</p>
   <div class="scroll">
     <table>
@@ -152,13 +195,13 @@ footer{color:var(--muted);font-size:.8rem}
 </section>
 
 <section class="panel">
-  <h2>4 · So wird gerechnet</h2>
+  <h2>5 · So wird gerechnet</h2>
   <div class="formula" id="formula"></div>
   <p class="small" style="margin-top:10px">k und der Widerstand bei 2-h-Tempo stammen aus dem Abstract von da Silva et al. Der Faktor r(T) übersetzt gesparte Energie in Tempo. Er ist aus den Zeitangaben für 2, 3, 4 und 5 h zurückgerechnet und dazwischen linear interpoliert. Für 2 h ist er bestätigt, für 3 bis 5 h nicht.</p>
 </section>
 
 <section class="panel">
-  <h2>5 · Wie stark die Studien voneinander abweichen</h2>
+  <h2>6 · Wie stark die Studien voneinander abweichen</h2>
   <p class="small">Für dieselbe Formation bei rund 2-h-Tempo: links die Umrechnung nach da Silva et al., rechts die Schätzung der Aerodynamik-Studie selbst. Der Rechner oben folgt der linken Spalte, also der optimistischeren.</p>
   <div class="scroll">
     <table class="stack">
@@ -169,7 +212,7 @@ footer{color:var(--muted);font-size:.8rem}
 </section>
 
 <section class="panel">
-  <h2>6 · Prüfprotokoll der Vorlage</h2>
+  <h2>7 · Prüfprotokoll der Vorlage</h2>
   <div class="scroll">
     <table class="stack">
       <thead><tr><th>Angabe in der Vorlage</th><th>Status</th><th>Befund</th></tr></thead>
@@ -191,7 +234,7 @@ footer{color:var(--muted);font-size:.8rem}
 </section>
 
 <section class="panel">
-  <h2>7 · Grenzen</h2>
+  <h2>8 · Grenzen</h2>
   <ul>
     <li><strong>Ein Körper für alle Tempi.</strong> Alle Werte gelten für den 52-kg-Referenzläufer der Studie. Schwerere Läufer haben pro Kilogramm weniger Stirnfläche, der relative Effekt fällt bei ihnen eher kleiner aus.</li>
     <li><strong>Formationen aus der Simulation.</strong> Die Prozentwerte gelten für feste Abstände von etwa einem Meter in ruhender Luft. Im Feld eines Volksmarathons hält niemand diese Position über 42 km.</li>
@@ -247,21 +290,21 @@ function model(Tmin,d){
 // Geometrie in Metern relativ zum Hauptläufer (0,0), y nach vorn. geo: wie sicher die Aufstellung belegt ist.
 const ROW3=[[-0.75,1.3],[0,1.3],[0.75,1.3]];
 const PRESETS=[
-  {d:33.4,label:"33,4 %",name:"Pacer seitlich neben dir",pac:[[0,1.2],[-0.7,0],[0.7,0]],
+  {d:33.4,g:"sh",label:"33,4 %",name:"Pacer seitlich neben dir",pac:[[0,1.2],[-0.7,0],[0.7,0]],
    info:"Zwei Pacer laufen 0,7 m neben dir, die Luft wird zwischen euch beschleunigt. Den dritten Pacer habe ich vorn eingezeichnet, seine Lage ist aus dem Text erschlossen. Schickhofer & Hanson, Formation 4."},
-  {d:38.5,label:"38,5 %",name:"Hinter der Dreierreihe, ungünstig",pac:ROW3,ghost:[0.375,0],
+  {d:38.5,g:"re",label:"38,5 %",name:"Hinter der Dreierreihe, ungünstig",pac:ROW3,ghost:[0.375,0],
    info:"Bekele hinter drei Pacern nebeneinander, aber nicht in der besten Position. Welche Position das genau ist, nennt das Abstract nicht. Polidori et al."},
-  {d:41.3,label:"41,3 %",name:"Zwei Pacer vorn, Lücke dazwischen",pac:[[-0.35,1.2],[0.35,1.2]],
+  {d:41.3,g:"sh",label:"41,3 %",name:"Zwei Pacer vorn, Lücke dazwischen",pac:[[-0.35,1.2],[0.35,1.2]],
    info:"Die Luft strömt durch die Lücke zwischen den beiden auf dich. Die Zahl der Pacer ist aus dem Text erschlossen. Schickhofer & Hanson, Formation 3."},
-  {d:57.3,label:"57,3 %",name:"Direkt hinter einem der drei Pacer",pac:ROW3,
+  {d:57.3,g:"re",label:"57,3 %",name:"Direkt hinter einem der drei Pacer",pac:ROW3,
    info:"Bekeles beste Position: 1,3 m direkt hinter einem Läufer der Dreierreihe. Referenzfall für alle Zeitangaben. Polidori et al."},
-  {d:63.3,label:"63,3 %",name:"Zweiter in einer Fünferreihe",pac:[[0,1.2],[0,-1.2],[0,-2.4],[0,-3.6]],
+  {d:63.3,g:"re",label:"63,3 %",name:"Zweiter in einer Fünferreihe",pac:[[0,1.2],[0,-1.2],[0,-2.4],[0,-3.6]],
    info:"Fünf Läufer hintereinander, du an Position 2. Der Abstand ist im Abstract nicht genannt. Beaumont et al."},
-  {d:70.1,label:"70,1 %",name:"Ein Pacer direkt vor dir",pac:[[0,1.2]],
+  {d:70.1,g:"sh",label:"70,1 %",name:"Ein Pacer direkt vor dir",pac:[[0,1.2]],
    info:"1,2 m Abstand. Schickhofer & Hanson, Formation 1."},
-  {d:75.6,label:"75,6 %",name:"Pacer vor und hinter dir",pac:[[0,1.2],[0,-1.2]],
+  {d:75.6,g:"sh",label:"75,6 %",name:"Pacer vor und hinter dir",pac:[[0,1.2],[0,-1.2]],
    info:"Je 1,2 m Abstand. Der hintere Pacer füllt deinen Sog auf. Die beste der vier simulierten Aufstellungen. Schickhofer & Hanson, Formation 2."},
-  {d:85,label:"85 %",name:"Rechnerische Obergrenze",pac:[],shield:true,
+  {d:85,g:"max",label:"85 %",name:"Rechnerische Obergrenze",pac:[],shield:true,
    info:"da Silva et al. nennen 85 % als das, was ideales Drafting bestenfalls erreicht. Eine konkrete Aufstellung dazu gibt es nicht."}
 ];
 const CUSTOM={name:"Eigener Wert",pac:[],info:"Keine Studie hat genau diesen Wert simuliert."};
@@ -333,10 +376,59 @@ function render(){
     "                        = "+(T*60)+" s × "+de(m.r,3)+" × "+de(d/100*m.inc/100,5)+" = "+de(m.sec,0)+" s";
 }
 
-$("chips").innerHTML=PRESETS.map(p=>'<button type="button" class="chip" data-d="'+p.d+'" aria-pressed="false" aria-label="'+p.label+', '+p.name+'">'+fig(p,58,76,false)+p.label+'</button>').join("");
+const GROUPS=[["sh","Schickhofer & Hanson · 1,2 m Abstand"],["re","Polidori und Beaumont · eine Arbeitsgruppe, 1,3 m"],["max","da Silva et al."]];
+$("chips").innerHTML=GROUPS.map(([g,t])=>'<div class="grp">'+t+'</div><div class="chips">'
+  +PRESETS.filter(p=>p.g===g).map(p=>'<button type="button" class="chip" data-d="'+p.d+'" aria-pressed="false" aria-label="'+p.label+', '+p.name+'">'+fig(p,58,76,false)+p.label+'</button>').join("")+'</div>').join("");
 $("chips").addEventListener("click",ev=>{const b=ev.target.closest(".chip");if(!b)return;$("drag").value=b.dataset.d;render();});
 $("spreadTable").innerHTML=SPREAD.map(s=>{const x=model(120,s.d);
   return '<tr><td>'+s.name+'</td><td class="num" data-label="Dieser Rechner">'+mmss(x.sec)+' min · '+de(x.saveSolo,2)+' %</td><td data-label="Originalstudie">'+s.own+'</td></tr>';}).join("");
+// ---- Strömungsskizzen (Prinzip, keine CFD) --------------------------------
+// Jeder Läufer ist eine Quelle mit Senke dahinter (Rankine-Oval): Körper plus Nachlauf.
+// e = wie stark er der freien Anströmung ausgesetzt ist (1 = voll, klein = im Windschatten).
+const M=34;   // Pixel je Meter
+const FLOWS=[
+  {t:"Allein",c:"Vorn staut sich die Luft, hinten reißt sie ab und wirbelt. Der Unterdruck im Rücken zieht dich zurück. Das ist der volle Widerstand.",
+   r:[{x:75,y:58,e:1,me:1,plus:1,minus:1}]},
+  {t:"Ein Pacer vorn · 70,1 %",c:"Du läufst in seiner langsamen Luft. Vor dir staut sich fast nichts mehr, dein eigener Sog bleibt.",
+   r:[{x:75,y:36,e:1,plus:1},{x:75,y:36+1.2*M,e:.32,me:1,minus:1}]},
+  {t:"Pacer vorn und hinten · 75,6 %",c:"Vor dem Hintermann staut sich Luft. Dieser Überdruck füllt deinen Sog auf.",
+   r:[{x:75,y:30,e:1,plus:1},{x:75,y:30+1.2*M,e:.32,me:1,w:.45},{x:75,y:30+2.4*M,e:.3,plus:1}]},
+  {t:"Zwei vorn mit Lücke · 41,3 %",c:"Die Luft schießt durch die Lücke und trifft dich mitten auf den Körper.",
+   r:[{x:63,y:36,e:1,plus:1},{x:87,y:36,e:1,plus:1},{x:75,y:36+1.2*M,e:.8,me:1,plus:1,minus:1}]},
+  {t:"Pacer seitlich · 33,4 %",c:"Zwischen euch wird die Luft schneller. Mehr Widerstand an den Armen, dein Windschatten wird kürzer.",
+   r:[{x:75,y:36,e:1,plus:1},{x:51,y:36+1.2*M,e:1,plus:1},{x:99,y:36+1.2*M,e:1,plus:1},{x:75,y:36+1.2*M,e:.6,me:1,minus:1}]},
+  {t:"Ein Pacer vorn, 1,5 m",c:"Mehr Abstand, und die schnelle Luft schließt sich vor dir wieder. Laut Fit der Studie noch 63 % statt 70 %.",
+   r:[{x:75,y:30,e:1,plus:1,L:.9},{x:75,y:30+1.5*M,e:.5,me:1,minus:1}]}
+];
+function flowSvg(f){
+  const W=150,H=170, src=[];
+  f.r.forEach(q=>{const m=20*q.e, L=(q.L||1.1)*M*(q.w||1)*(0.5+0.5*q.e); src.push([q.x,q.y,m],[q.x,q.y+L,-m]);});
+  const vel=(x,y)=>{let u=0,v=1;for(const [sx,sy,m] of src){const dx=x-sx,dy=y-sy,r2=dx*dx+dy*dy+4;u+=m/(2*Math.PI)*dx/r2;v+=m/(2*Math.PI)*dy/r2;}return [u,v];};
+  let o='<svg viewBox="20 0 110 '+H+'" aria-hidden="true">';
+  // Nachlauf mit Wirbeln
+  f.r.forEach(q=>{const w=6+5*q.e, L=(q.L||1.1)*M*(q.w||1)*(0.55+0.45*q.e), y=q.y+3;
+    o+='<path class="wk" d="M'+(q.x-w)+' '+y+' Q'+(q.x-w)+' '+(y+L*.65)+' '+q.x+' '+(y+L)+' Q'+(q.x+w)+' '+(y+L*.65)+' '+(q.x+w)+' '+y+' Z"/>';
+    [[-1,.34],[1,.62]].forEach(([sg,k])=>{const cx=q.x+sg*w*.38, cy=y+L*k, R=Math.max(2.2,w*.42);let d="";
+      for(let i=0;i<=18;i++){const a=i/18*2.6*Math.PI, r=R*(1-i/22);d+=(i?"L":"M")+(cx+sg*r*Math.cos(a)).toFixed(1)+" "+(cy+r*Math.sin(a)).toFixed(1);}
+      o+='<path class="vx" d="'+d+'"/>';});});
+  // Stromlinien
+  for(let x0=7.5;x0<W;x0+=9){let x=x0,y=0,d="M"+x.toFixed(1)+" 0";
+    for(let i=0;i<900&&y<H&&x>-5&&x<W+5;i++){const [u,v]=vel(x,y),n=Math.hypot(u,v)||1,[u2,v2]=vel(x+u/n*.5,y+v/n*.5),n2=Math.hypot(u2,v2)||1;
+      x+=u2/n2; y+=v2/n2; if(i%3===2) d+="L"+x.toFixed(1)+" "+y.toFixed(1);}
+    o+='<path class="sl" d="'+d+'"/>';}
+  // Läufer und Druckzeichen
+  f.r.forEach(q=>{const c=q.me?"me":"pc";
+    o+='<ellipse class="'+c+'" cx="'+q.x+'" cy="'+q.y+'" rx="8.5" ry="5"/><circle class="'+c+' hd" cx="'+q.x+'" cy="'+q.y+'" r="3.7"/>';
+    if(q.plus) o+='<text class="pl" x="'+q.x+'" y="'+(q.y-8)+'">+</text>';
+    if(q.minus) o+='<text class="mi" x="'+q.x+'" y="'+(q.y+19)+'">−</text>';});
+  return o+'</svg>';
+}
+$("flows").innerHTML=FLOWS.map(f=>'<figure class="flow">'+flowSvg(f)+'<figcaption><b>'+f.t+'</b>'+f.c+'</figcaption></figure>').join("");
+// Abstandsabhängigkeit: Fit aus Schickhofer & Hanson, Widerstand = 5,63·exp(−1,28/x) N, allein 6,52 N
+const red=x=>100*(1-5.63*Math.exp(-1.28/x)/6.52);
+$("distLine").textContent="Der Abstand zählt stark. Fit der Studie für einen Pacer vorn: "+[1.0,1.2,1.3,1.5].map(x=>de(x,1)+" m → "+de(red(x),0)+" %").join(", ")
+  +". Die 0,1 m Unterschied zwischen den Arbeitsgruppen erklären also nur etwa "+de(red(1.2)-red(1.3),0)+" der 13 Punkte zwischen 70,1 % und 57,3 %. Der Rest kommt aus Körpermodell, Rechenverfahren und den Nachbarn in der Reihe.";
+
 ["time","drag"].forEach(id=>$(id).addEventListener("input",render));
 render();
 </script>
