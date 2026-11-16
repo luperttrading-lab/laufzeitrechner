@@ -78,7 +78,13 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
   grid-template-areas:". u ." "l d r"}
 .dpad button{padding:0;font-size:1rem}
 .pinfo{flex:1;min-width:0}
-.pwarn{font-size:.8rem;color:var(--muted);margin-top:2px;min-height:2.4em;line-height:1.2}
+.pwarn{font-size:.8rem;color:var(--muted);margin-top:2px;line-height:1.2}
+.toast{position:fixed;z-index:50;left:12px;right:12px;top:max(10px,env(safe-area-inset-top));max-width:520px;margin:0 auto;
+  background:#e8742c;color:#fff;font-weight:800;font-size:.98rem;line-height:1.3;text-align:center;
+  padding:11px 14px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.45);pointer-events:none;
+  opacity:0;transform:translateY(-130%);transition:opacity .18s,transform .18s}
+.toast.show{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
 .pwarn.on{color:var(--warn);font-weight:800;font-size:.86rem}
 .nope{animation:nope .35s}
 @keyframes nope{20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
@@ -109,10 +115,11 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 </head>
 <body>
 <div class="app">
+<div id="toast" class="toast" role="alert" aria-live="assertive"></div>
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 14</div>
+    <div class="kicker">Testversion 15</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -397,11 +404,11 @@ const free=(q,skip)=>!check(q,skip);
 let note="", noteN=0;
 let warnT=0;
 const HINT="Pfeile verschieben um 10 cm.";
-function warn(t){const w=$("pwarn"); clearTimeout(warnT);
-  if(t){w.textContent=t; w.classList.add("on"); warnT=setTimeout(()=>warn(null),3500);}
-  else {w.textContent=HINT; w.classList.remove("on");}}
+function warn(t){const w=$("toast"); clearTimeout(warnT);   // Warnung als Banner oben am Bildschirm
+  if(t){w.textContent="⚠ "+t; w.classList.add("show"); warnT=setTimeout(()=>warn(null),3500);}
+  else w.classList.remove("show");}
 function block(q,skip,btn){const r=pacers.length>=MAXP&&skip<0?"Höchstens "+MAXP+" Pacer.":check(q,skip);
-  if(r){note=r;noteN=30;warn(r);
+  if(r){warn(r);
     if(btn){btn.classList.remove("nope"); void btn.offsetWidth; btn.classList.add("nope");}}
   else {noteN=0; warn(null);}   // erfolgreicher Zug löscht die alte Warnung
   readout(); return !r;}
