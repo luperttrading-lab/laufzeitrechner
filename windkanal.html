@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Windkanal für Läufer</title>
+<style>
+/* Layout: Windkanal als hohe Bühne, Messwert darüber gelegt, Bedienung und Modellprüfung darunter. */
+:root{
+  --paper:#f7f3e9; --card:#fffdf8; --ink:#142d49; --text2:#33495d; --muted:#617080;
+  --gold:#a8721a; --line:#d9d1c2; --tile:#e9eef2; --hl-bg:#f8edcf; --note-bg:#f5f0e4; --link:#174d78;
+  --ok:#1f6f4a; --ok-bg:#dff0e6; --warn:#8a5a00; --warn-bg:#fbe9c2;
+  --display:Georgia,"Times New Roman",serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
+    --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --hl-bg:#2a2616; --note-bg:#1a2a3d; --link:#8fc0ea;
+    --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
+  --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --hl-bg:#2a2616; --note-bg:#1a2a3d; --link:#8fc0ea;
+  --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.45 var(--body);font-variant-numeric:tabular-nums}
+main{max-width:980px;margin:auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:16px}
+header{border-bottom:2px solid var(--gold);padding:4px 0 14px}
+.kicker{font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:800}
+h1{font:700 clamp(1.7rem,5vw,2.6rem)/1.05 var(--display);margin:6px 0;text-wrap:balance}
+.lead{max-width:65ch;color:var(--text2);margin:0}
+h2{font:700 1.25rem var(--display);margin:0 0 10px;text-wrap:balance}
+p{margin:0 0 10px;max-width:70ch}
+.small{font-size:.83rem;color:var(--muted)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.lab{display:grid;grid-template-columns:minmax(0,400px) 1fr;gap:16px;align-items:start}
+.stage{position:relative;border-radius:14px;overflow:hidden;background:#0a1320;line-height:0}
+canvas{width:100%;height:auto;display:block}
+.hud{position:absolute;left:6px;top:6px;right:6px;display:flex;justify-content:space-between;gap:6px;pointer-events:none;line-height:1.2}
+.hud div{background:rgba(10,19,32,.82);border-radius:9px;padding:4px 9px 5px;color:#e8edf3;white-space:nowrap}
+.hud b{display:block;font:700 1.12rem var(--display)}
+.hud span{font-size:.66rem;color:#aab8c8}
+.side{display:flex;flex-direction:column;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+button{font:600 .86rem var(--body);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.pad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,40px);gap:5px}
+.pad button{padding:0;font-size:1.05rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.note{border-left:4px solid var(--gold);padding:10px 12px;background:var(--note-bg);color:var(--text2);border-radius:0 8px 8px 0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--text2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+td.num,th.num{text-align:right}
+.pill{display:inline-block;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)}
+ul{margin:0;padding-left:20px} li{margin:6px 0;max-width:70ch}
+a{color:var(--link)}
+@media(max-width:760px){.lab{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="kicker">Windschatten · Strömungsmodell · Testversion</div>
+  <h1>Windkanal für Läufer</h1>
+  <p class="lead">Setze Pacer um dich herum und sieh zu, wie sich die Luft verteilt. Der Widerstand auf jeden Läufer wird aus der Strömung berechnet.</p>
+</header>
+
+<div class="lab">
+  <div class="stage">
+    <canvas id="cv" width="768" height="1440" aria-label="Draufsicht auf die Läufer im Luftstrom"></canvas>
+    <div class="hud">
+      <div><b id="drag">–</b><span id="dragSub">Widerstand</span></div>
+      <div><b id="inflow">–</b><span>Anströmung vor dir</span></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <section class="panel">
+      <h2>Aufstellung</h2>
+      <div class="chips" id="presets"></div>
+      <p class="small" id="cmp" style="margin:10px 0 0"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Pacer setzen</h2>
+      <p class="small">Tippe auf eine freie Stelle, um einen Pacer einzufügen. Ziehe ihn mit dem Finger. Du selbst bist der goldene Läufer und bleibst stehen.</p>
+      <div class="row">
+        <div class="pad" aria-label="Gewählten Pacer um 5 cm verschieben">
+          <span></span><button type="button" id="nU" aria-label="5 cm nach vorn">▲</button><span></span>
+          <button type="button" id="nL" aria-label="5 cm nach links">◀</button><button type="button" id="nD" aria-label="5 cm nach hinten">▼</button><button type="button" id="nR" aria-label="5 cm nach rechts">▶</button>
+        </div>
+        <div>
+          <div id="selInfo" style="font-weight:700">Kein Pacer gewählt</div>
+          <div class="small">Pfeile verschieben um 5 cm.</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button type="button" id="del">Pacer entfernen</button>
+        <button type="button" id="clr">Alle entfernen</button>
+        <button type="button" id="pause" aria-pressed="false">Pause</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="legend">
+        <span><i style="background:#6fa8dc"></i>langsame Luft</span>
+        <span><i style="background:#e6eef6"></i>Lauftempo</span>
+        <span><i style="background:#ffb060"></i>schneller als Lauftempo</span>
+      </div>
+      <p class="small" style="margin:8px 0 0">Oben links steht dein Widerstand im Vergleich zum Alleinlauf, rechts das Tempo der Luft direkt vor dir. Jeder Strich ist ein Luftteilchen, seine Länge zeigt das Tempo. Dunkle Flächen sind ruhige Luft. Die Zahl an einem Pacer ist sein eigener Widerstand im Vergleich zum Alleinlauf.</p>
+    </section>
+  </div>
+</div>
+
+<section class="panel">
+  <h2>Wie gut trifft das Modell die Studie?</h2>
+  <p class="small">Das Modell hat zwei Stellschrauben. Beide habe ich an zwei Werten von Schickhofer und Hanson geeicht. Alle anderen Zeilen sind Vorhersagen, die das Modell vorher nicht kannte.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Aufstellung</th><th class="num">Studie</th><th class="num">Simulator</th><th>Rolle</th></tr></thead>
+      <tbody id="valid"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Modellannahmen</h2>
+  <ul>
+    <li><strong>Zwei Dimensionen.</strong> Gerechnet wird eine waagerechte Scheibe auf Brusthöhe. Jeder Läufer ist eine Ellipse von 45 × 25 cm, ohne Arme, Beine und Bewegung.</li>
+    <li><strong>Ersatz für die dritte Dimension.</strong> In echt weicht Luft über die Köpfe aus und füllt den Windschatten von oben wieder auf. Das Modell bildet beides mit je einer Stellschraube nach. Ohne sie käme hinter einem Pacer sogar Schub heraus und zwischen Seitenläufern ein viel zu starker Düseneffekt.</li>
+    <li><strong>Zähere Luft.</strong> Die Rechnung läuft mit einer rund tausendfach kleineren Reynolds-Zahl als echte Luft um einen Läufer. Feine Turbulenz gibt es hier nicht, die Strömung beruhigt sich nach kurzer Zeit.</li>
+    <li><strong>Tempo spielt keine Rolle.</strong> Die Prozentwerte gelten im Modell für jedes Lauftempo gleich.</li>
+    <li><strong>Geeicht, nicht unabhängig.</strong> Weil das Modell an der Studie von Schickhofer und Hanson ausgerichtet ist, kann es deren Zahlen nicht bestätigen. Es zeigt, was aus denselben Mechanismen für andere Aufstellungen folgt.</li>
+  </ul>
+</section>
+
+<footer class="small">Verfahren: Gitter-Boltzmann (D2Q9) mit Wirbelviskosität nach Smagorinsky, 128 × 240 Zellen zu je 3 cm. Widerstand aus dem Impulsübertrag der Luft an den Körperrändern.</footer>
+</main>
+
+<script>
+//<core>
+// Gitter-Boltzmann-Verfahren (D2Q9) für die Luft um die Läufer, von oben gesehen.
+// Luft strömt in +y (im Bild nach unten). Seiten periodisch, oben Einlass, unten Auslass.
+function createSim(NX,NY,P){
+  const N=NX*NY;
+  const CX=[0,1,0,-1,0,1,-1,-1,1], CY=[0,0,1,0,-1,1,1,-1,-1];
+  const WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36], OPP=[0,3,4,1,2,7,8,5,6];
+  let f=new Float32Array(9*N), g=new Float32Array(9*N);
+  const body=new Uint8Array(N), ux=new Float32Array(N), uy=new Float32Array(N);
+  const fx=new Float64Array(16), fy=new Float64Array(16);
+  const feq=(i,r,u,v)=>{const cu=3*(CX[i]*u+CY[i]*v);return WT[i]*r*(1+cu+0.5*cu*cu-1.5*(u*u+v*v));};
+  function reset(){for(let k=0;k<N;k++){for(let i=0;i<9;i++)f[i*N+k]=feq(i,1,0,P.U);ux[k]=0;uy[k]=P.U;}}
+  // list: [{x,y,a,b}] Mittelpunkt und Halbachsen in Zellen; Index+1 = Körpernummer
+  function setBodies(list){
+    const old=body.slice(); body.fill(0);
+    list.forEach((q,n)=>{
+      for(let y=Math.max(1,Math.floor(q.y-q.b));y<=Math.min(NY-2,Math.ceil(q.y+q.b));y++)
+        for(let x=Math.floor(q.x-q.a);x<=Math.ceil(q.x+q.a);x++){
+          const dx=(x-q.x)/q.a, dy=(y-q.y)/q.b;
+          if(dx*dx+dy*dy<=1) body[y*NX+((x%NX)+NX)%NX]=n+1;
+        }});
+    for(let k=0;k<N;k++) if(old[k]&&!body[k]){for(let i=0;i<9;i++)f[i*N+k]=feq(i,1,0,0);ux[k]=0;uy[k]=0;}
+      else if(body[k]){ux[k]=0;uy[k]=0;}
+  }
+  function step(){
+    fx.fill(0); fy.fill(0);
+    const tau0=0.5+3*P.nu, U=P.U, lam=P.lam, mu=P.mu||0, sm=18*Math.SQRT2*P.cs*P.cs, t02=tau0*tau0;
+    const N2=2*N,N3=3*N,N4=4*N,N5=5*N,N6=6*N,N7=7*N,N8=8*N;
+    for(let k=0;k<N;k++){
+      if(body[k]) continue;
+      const f0=f[k],f1=f[N+k],f2=f[N2+k],f3=f[N3+k],f4=f[N4+k],f5=f[N5+k],f6=f[N6+k],f7=f[N7+k],f8=f[N8+k];
+      const r=f0+f1+f2+f3+f4+f5+f6+f7+f8;
+      const u=(f1-f3+f5-f6-f7+f8)/r, v=(f2-f4+f5+f6-f7-f8)/r;
+      ux[k]=u; uy[k]=v;
+      const us=1-1.5*(u*u+v*v), a=3*u, b=3*v, c=a+b, d=b-a;
+      const q9=r/9, q36=r/36;
+      const e0=4*q9*us, e1=q9*(us+a+0.5*a*a), e3=q9*(us-a+0.5*a*a), e2=q9*(us+b+0.5*b*b), e4=q9*(us-b+0.5*b*b);
+      const e5=q36*(us+c+0.5*c*c), e7=q36*(us-c+0.5*c*c), e6=q36*(us+d+0.5*d*d), e8=q36*(us-d+0.5*d*d);
+      // Wirbelviskosität nach Smagorinsky aus dem Nichtgleichgewichts-Spannungstensor
+      const n1=f1-e1,n2=f2-e2,n3=f3-e3,n4=f4-e4,n5=f5-e5,n6=f6-e6,n7=f7-e7,n8=f8-e8;
+      const pxx=n1+n3+n5+n6+n7+n8, pyy=n2+n4+n5+n6+n7+n8, pxy=n5-n6+n7-n8;
+      const tau=0.5*(tau0+Math.sqrt(t02+sm*Math.sqrt(pxx*pxx+pyy*pyy+2*pxy*pxy)/r)), om=1/tau;
+      // Ersatz für die dritte Dimension: Luft von oben füllt langsame Zonen wieder auf
+      const u2=u-tau*lam*u, v2=v+tau*lam*(U-v);
+      const vs=1-1.5*(u2*u2+v2*v2), a2=3*u2, b2=3*v2, c2=a2+b2, d2=b2-a2;
+      // Druckausgleich nach oben: Überdruck entweicht, Unterdruck wird aufgefüllt
+      const rr=r+tau*mu*(1-r), r9=rr/9, r36=rr/36;
+      f[k]    =f0-om*(f0-4*r9*vs);
+      f[N+k]  =f1-om*(f1-r9*(vs+a2+0.5*a2*a2));
+      f[N3+k] =f3-om*(f3-r9*(vs-a2+0.5*a2*a2));
+      f[N2+k] =f2-om*(f2-r9*(vs+b2+0.5*b2*b2));
+      f[N4+k] =f4-om*(f4-r9*(vs-b2+0.5*b2*b2));
+      f[N5+k] =f5-om*(f5-r36*(vs+c2+0.5*c2*c2));
+      f[N7+k] =f7-om*(f7-r36*(vs-c2+0.5*c2*c2));
+      f[N6+k] =f6-om*(f6-r36*(vs+d2+0.5*d2*d2));
+      f[N8+k] =f8-om*(f8-r36*(vs-d2+0.5*d2*d2));
+    }
+    // Strömen; an Körpern prallen die Teilchen zurück und übertragen Impuls (= Kraft auf den Körper)
+    for(let y=0;y<NY;y++){
+      const row=y*NX;
+      for(let x=0;x<NX;x++){
+        const k=row+x; if(body[k]) continue;
+        g[k]=f[k];
+        for(let i=1;i<9;i++){
+          const yn=y+CY[i]; if(yn<0||yn>=NY) continue;
+          let xn=x+CX[i]; if(xn<0) xn+=NX; else if(xn>=NX) xn-=NX;
+          const kn=yn*NX+xn, v=f[i*N+k], b=body[kn];
+          if(b){g[OPP[i]*N+k]=v; fx[b]+=2*v*CX[i]; fy[b]+=2*v*CY[i];}
+          else g[i*N+kn]=v;
+        }
+      }
+    }
+    const top=0, bot=(NY-1)*NX, prev=(NY-2)*NX;
+    for(let i=0;i<9;i++){const e=feq(i,1,0,U), o=i*N;
+      for(let x=0;x<NX;x++){g[o+top+x]=e; g[o+bot+x]=g[o+prev+x];}}
+    const t=f; f=g; g=t;
+  }
+  reset();
+  return {NX,NY,P,body,ux,uy,fx,fy,step,reset,setBodies};
+}
+//</core>
+
+// ---- Aufbau ---------------------------------------------------------------
+const DX=0.03, NX=128, NY=240, A=0.225/DX, B=0.125/DX, MX=NX/2, MY=90;
+const PAR={U:0.1,nu:0.008,cs:0.16,lam:0.0004,mu:0.2};
+const F0=0.09034818107883136;                       // Widerstand allein, im selben Modell vorab berechnet
+const SETTLE=3000;                     // Schritte, bis sich die Strömung beruhigt hat
+const sim=createSim(NX,NY,PAR);
+const me={x:MX,y:MY,a:A,b:B};
+let pacers=[], sel=-1, since=0, paused=false, preset="f1";
+const ema=new Float64Array(16);
+
+// vor = Meter vor dir, seit = Meter nach rechts
+const mk=(vor,seit)=>({x:MX+seit/DX,y:MY-vor/DX,a:A,b:B});
+const PRESETS=[
+  {k:"solo",t:"Allein",p:[]},
+  {k:"f1",t:"1 vorn",p:[[1.2,0]],ref:70.1,src:"Schickhofer & Hanson, Formation 1"},
+  {k:"f2",t:"vorn + hinten",p:[[1.2,0],[-1.2,0]],ref:75.6,src:"Schickhofer & Hanson, Formation 2"},
+  {k:"f3",t:"2 vorn, Lücke",p:[[1.2,-0.35],[1.2,0.35]],ref:41.3,src:"Schickhofer & Hanson, Formation 3"},
+  {k:"f4",t:"vorn + seitlich",p:[[1.2,0],[0,-0.7],[0,0.7]],ref:33.4,src:"Schickhofer & Hanson, Formation 4"},
+  {k:"side",t:"nur seitlich",p:[[0,-0.7],[0,0.7]]},
+  {k:"row3",t:"Dreierreihe",p:[[1.3,-0.75],[1.3,0],[1.3,0.75]],ref:57.3,src:"Polidori et al."},
+  {k:"chain5",t:"Fünferkette",p:[[1.2,0],[-1.2,0],[-2.4,0],[-3.6,0]],ref:63.3,src:"Beaumont et al."}
+];
+const VALID=[["1 Pacer vorn, 1,2 m", 70.1, 70.2, "geeicht"], ["Pacer vorn + zwei seitlich", 33.4, 34.1, "geeicht"], ["Pacer vorn + hinten", 75.6, 77.9, "Test"], ["2 Pacer vorn mit Lücke", 41.3, 37.8, "Test"], ["1 Pacer vorn, 1,0 m", 76.0, 74.4, "Test"], ["1 Pacer vorn, 1,5 m", 63.2, 64.6, "Test"], ["Dreierreihe vorn, 1,3 m (andere Arbeitsgruppe)", 57.3, 66.2, "Test"], ["Fünferkette, Position 2 (andere Arbeitsgruppe)", 63.3, 78.4, "Test"]];
+
+const $=id=>document.getElementById(id);
+const de=(x,n)=>x.toFixed(n).replace(".",",");
+function apply(){sim.setBodies([me].concat(pacers)); since=0;}
+function loadPreset(k){const P=PRESETS.find(p=>p.k===k); preset=k; pacers=P.p.map(q=>mk(q[0],q[1])); sel=-1; apply(); ui();}
+function free(q,skip){ // true, wenn q keinen anderen Körper berührt und im Feld liegt
+  if(q.x<A+1||q.x>NX-A-2||q.y<B+14||q.y>NY-B-16) return false;
+  return [me].concat(pacers).every((o,i)=>i-1===skip||Math.abs(o.x-q.x)>=2*A+1||Math.abs(o.y-q.y)>=2*B+1);
+}
+function ui(){
+  document.querySelectorAll("#presets button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===preset)));
+  const s=pacers[sel];
+  if(s){const v=(MY-s.y)*DX, w=(s.x-MX)*DX;
+    $("selInfo").textContent=de(Math.abs(v),2)+" m "+(v>=0?"vor":"hinter")+" dir, "+de(Math.abs(w),2)+" m "+(Math.abs(w)<0.005?"seitlich":w>0?"rechts":"links");}
+  else $("selInfo").textContent="Kein Pacer gewählt";
+  ["nU","nD","nL","nR","del"].forEach(id=>$(id).disabled=!s);
+  $("clr").disabled=!pacers.length;
+  const P=PRESETS.find(p=>p.k===preset);
+  $("cmp").textContent=!P?"Eigene Aufstellung. Dafür gibt es keinen Studienwert."
+    :P.ref?"Studienwert für diese Aufstellung: "+de(P.ref,1)+" % weniger Widerstand ("+P.src+")."
+    :P.k==="solo"?"Ohne Pacer. Das ist der Bezugswert 100 %.":"Für diese Aufstellung gibt es keinen Studienwert.";
+}
+
+// ---- Bedienung ------------------------------------------------------------
+const cv=$("cv"), ctx=cv.getContext("2d"), S=cv.width/NX;
+const cell=ev=>{const r=cv.getBoundingClientRect();return [(ev.clientX-r.left)/r.width*NX,(ev.clientY-r.top)/r.height*NY];};
+const hit=(x,y)=>pacers.findIndex(q=>Math.abs(q.x-x)<A+4&&Math.abs(q.y-y)<B+6);
+let dragging=-1, moved=false;
+cv.addEventListener("touchstart",ev=>{const t=ev.touches[0];if(hit(...cell(t))>=0)ev.preventDefault();},{passive:false});
+cv.addEventListener("touchmove",ev=>{if(dragging>=0)ev.preventDefault();},{passive:false});
+cv.addEventListener("pointerdown",ev=>{const [x,y]=cell(ev);dragging=hit(x,y);moved=false;
+  if(dragging>=0){sel=dragging;try{cv.setPointerCapture(ev.pointerId);}catch(e){}ui();}});
+cv.addEventListener("pointermove",ev=>{if(dragging<0)return;const [x,y]=cell(ev),q=pacers[dragging],n={x,y,a:A,b:B};
+  if(free(n,dragging)){q.x=x;q.y=y;moved=true;preset="";apply();ui();}});
+const drop=()=>{dragging=-1;};
+cv.addEventListener("pointerup",drop); cv.addEventListener("pointercancel",drop);
+cv.addEventListener("click",ev=>{if(moved){moved=false;return;}const [x,y]=cell(ev);const h=hit(x,y);
+  if(h>=0){sel=h;ui();return;}
+  const n={x,y,a:A,b:B};
+  if(pacers.length<8&&free(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();ui();}});
+function nudge(dx,dy){const q=pacers[sel];if(!q)return;const n={x:q.x+dx*0.05/DX,y:q.y+dy*0.05/DX,a:A,b:B};
+  if(free(n,sel)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
+$("nU").onclick=()=>nudge(0,-1); $("nD").onclick=()=>nudge(0,1); $("nL").onclick=()=>nudge(-1,0); $("nR").onclick=()=>nudge(1,0);
+$("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.length?"":"solo";apply();ui();};
+$("clr").onclick=()=>loadPreset("solo");
+$("pause").onclick=()=>{paused=!paused;$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"Weiter":"Pause";};
+$("presets").innerHTML=PRESETS.map(p=>'<button type="button" data-k="'+p.k+'" aria-pressed="false">'+p.t+'</button>').join("");
+$("presets").addEventListener("click",ev=>{const b=ev.target.closest("button");if(b)loadPreset(b.dataset.k);});
+$("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
+
+// ---- Luftteilchen ---------------------------------------------------------
+const NP=2600, px=new Float32Array(NP), py=new Float32Array(NP);
+for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;}
+const img=new ImageData(NX,NY), off=document.createElement("canvas"); off.width=NX; off.height=NY; const octx=off.getContext("2d");
+
+function draw(k){
+  const {ux,uy,body}=sim, d=img.data, U=PAR.U;
+  for(let c=0,o=0;c<NX*NY;c++,o+=4){
+    const s=Math.hypot(ux[c],uy[c])/U, a=s<1?s:1, h=s>1?Math.min(1,(s-1)/0.6):0;
+    d[o]=8+22*a+85*h; d[o+1]=14+38*a+22*h; d[o+2]=24+56*a-36*h; d[o+3]=255;
+  }
+  octx.putImageData(img,0,0); ctx.imageSmoothingEnabled=true; ctx.drawImage(off,0,0,cv.width,cv.height);
+  // Entfernungsmarken, bezogen auf dich
+  ctx.font="600 20px system-ui,sans-serif"; ctx.fillStyle="rgba(170,184,200,.75)"; ctx.strokeStyle="rgba(170,184,200,.22)"; ctx.lineWidth=1.5; ctx.textAlign="left";
+  for(let m=-4;m<=2;m++){const y=(MY-m/DX)*S; if(y<110||y>cv.height-12) continue;
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(m===0?30:18,y);ctx.stroke(); if(m!==0)ctx.fillText((m>0?"+":"−")+Math.abs(m)+" m",24,y+7);}
+  // Teilchen als kurze Striche, Länge = Tempo
+  const seg=[[],[],[]];
+  for(let i=0;i<NP;i++){
+    let x=px[i], y=py[i]; const c=(y|0)*NX+(x|0), u=ux[c], v=uy[c];
+    const nx=x+u*k, ny=y+v*k, s=Math.hypot(u,v)/U;
+    seg[s<0.55?0:s>1.15?2:1].push((x-u*26)*S,(y-v*26)*S,x*S,y*S);
+    x=nx; y=ny; if(x<0)x+=NX; else if(x>=NX)x-=NX;
+    if(y>=NY-1||y<0||body[(y|0)*NX+(x|0)]||Math.random()<0.0015*k/8){x=Math.random()*NX;y=Math.random()*1.5;}
+    px[i]=x; py[i]=y;
+  }
+  ctx.lineCap="round"; ctx.lineWidth=3;
+  [["rgba(111,168,220,.6)",0],["rgba(230,238,246,.55)",1],["rgba(255,176,96,.85)",2]].forEach(([col,j])=>{
+    ctx.strokeStyle=col; ctx.beginPath(); const a=seg[j];
+    for(let i=0;i<a.length;i+=4){ctx.moveTo(a[i],a[i+1]);ctx.lineTo(a[i+2],a[i+3]+0.01);} ctx.stroke();});
+  // Läufer
+  [me].concat(pacers).forEach((q,i)=>{
+    const X=q.x*S, Y=q.y*S;
+    ctx.fillStyle=i===0?"#dba84a":"#aab8c8"; ctx.beginPath(); ctx.ellipse(X,Y,q.a*S,q.b*S,0,0,7); ctx.fill();
+    ctx.fillStyle=i===0?"#8a6410":"#6c7c8e"; ctx.beginPath(); ctx.arc(X,Y,3.3*S,0,7); ctx.fill();
+    if(i>0&&i-1===sel){ctx.strokeStyle="#fff";ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(X,Y,q.a*S+7,q.b*S+7,0,0,7);ctx.stroke();}
+    if(i>0&&since>600){const p=100*(ema[i+1]/F0-1);
+      ctx.font="700 21px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#e8edf3";
+      ctx.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",X,Y-q.b*S-12);}
+  });
+}
+
+// ---- Schleife -------------------------------------------------------------
+function readout(){
+  const p=100*(1-ema[1]/F0), settling=since<SETTLE;
+  $("drag").textContent=since<400?"…":(p>=0?de(p,0)+" % weniger":de(-p,0)+" % mehr");
+  $("dragSub").textContent=settling?"Widerstand · misst "+Math.round(100*since/SETTLE)+" %":"Widerstand · stabil";
+  let s=0,n=0; for(let y=Math.round(MY-B-7);y<=Math.round(MY-B-3);y++) for(let x=Math.round(MX-A);x<=Math.round(MX+A);x++){const c=y*NX+x;if(!sim.body[c]){s+=sim.uy[c];n++;}}
+  $("inflow").textContent=n?de(Math.max(0,100*s/n/PAR.U),0)+" % vom Tempo":"–";
+}
+let frame=0;
+function loop(){
+  let steps=0;
+  if(!paused&&!document.hidden){
+    if(since<SETTLE+800){
+      const t0=performance.now();
+      do{sim.step(); steps++; since++;
+        const al=since<300?1/since:1/300; for(let i=1;i<=pacers.length+1;i++) ema[i]+=al*(sim.fy[i]-ema[i]);
+      }while(steps<14&&performance.now()-t0<11);
+    } else steps=8;   // Strömung steht: nur noch die Teilchen bewegen
+    draw(steps);
+    if(frame++%6===0) readout();
+  }
+  requestAnimationFrame(loop);
+}
+loadPreset("f1"); loop();
+</script>
+</body>
+</html>
