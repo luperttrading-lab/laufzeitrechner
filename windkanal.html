@@ -9,6 +9,7 @@
 :root{
   --paper:#f7f3e9; --card:#fffdf8; --ink:#142d49; --text2:#33495d; --muted:#617080;
   --gold:#a8721a; --line:#d9d1c2; --tile:#e9eef2; --hl-bg:#f8edcf; --note-bg:#f5f0e4; --link:#174d78;
+  --head:#b8552a; --tail:#17786a;
   --ok:#1f6f4a; --ok-bg:#dff0e6; --warn:#8a5a00; --warn-bg:#fbe9c2;
   --display:Georgia,"Times New Roman",serif;
   --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -18,6 +19,7 @@
     color-scheme:dark;
     --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
     --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --hl-bg:#2a2616; --note-bg:#1a2a3d; --link:#8fc0ea;
+    --head:#ffb060; --tail:#6eebd7;
     --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12;
   }
 }
@@ -25,7 +27,8 @@
   color-scheme:dark;
   --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
   --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --hl-bg:#2a2616; --note-bg:#1a2a3d; --link:#8fc0ea;
-  --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12;
+  --head:#ffb060; --tail:#6eebd7;
+    --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12;
 }
 *{box-sizing:border-box}
 html,body{height:100%;width:100%;margin:0;overflow:hidden;overscroll-behavior:none}
@@ -68,9 +71,12 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .wlabel{font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:3px;border-bottom:1px solid var(--line)}
 .wheel{position:relative;height:96px;overflow:hidden;touch-action:none;cursor:ns-resize}
 .wlist{will-change:transform}
-.witem{height:32px;line-height:32px;text-align:center;font-weight:700;font-size:1rem;white-space:nowrap;color:var(--ink)}
+.witem{height:32px;line-height:32px;text-align:center;font-weight:800;font-size:1.3rem;white-space:nowrap;color:var(--ink)}
 .wband{position:absolute;left:6px;right:6px;top:32px;height:32px;border-top:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);pointer-events:none}
-.whint{font-size:.74rem;color:var(--muted);text-align:center;padding-top:3px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wstate{font-size:.98rem;font-weight:800;text-align:center;padding-top:5px;border-top:1px solid var(--line);white-space:nowrap}
+.whint{font-size:.74rem;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wtag{position:absolute;right:7px;font-size:.66rem;font-weight:800;pointer-events:none}
+.wtag.t{top:9px;color:var(--tail)} .wtag.b{bottom:9px;color:var(--head)}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--text2)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
 .scroll{overflow-x:auto}
@@ -89,7 +95,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 7</div>
+    <div class="kicker">Testversion 8</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -124,7 +130,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Wirbel</dt>
       <dd>Der Schalter unter „Bild“ zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
-      <dd>Unter „Tempo + Wind“ stehen zwei Räder wie im Laufzeit-Rechner: senkrecht drehen, oder den Wert darüber oder darunter antippen. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
+      <dd>Unter „Tempo + Wind“ stehen zwei Räder wie im Laufzeit-Rechner: senkrecht drehen, oder den Wert darüber oder darunter antippen. Beim Wind bedeutet Plus Gegenwind und Minus Rückenwind, darunter steht es ausgeschrieben. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
     </dl>
   </section>
 
@@ -175,8 +181,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
   </div>
   <div class="pane" id="pane-wind" hidden>
     <div class="wheels">
-      <div class="wcell"><div class="wlabel">Wind · km/h</div><div id="wWind"></div><div class="whint" id="windOut"></div></div>
-      <div class="wcell"><div class="wlabel">Lauftempo · min/km</div><div id="wPace"></div><div class="whint" id="paceOut"></div></div>
+      <div class="wcell"><div class="wlabel">Wind · km/h</div><div id="wWind"></div><div class="wstate" id="windState"></div><div class="whint" id="windOut"></div></div>
+      <div class="wcell"><div class="wlabel">Lauftempo · min/km</div><div id="wPace"></div><div class="wstate" id="paceState"></div><div class="whint" id="paceOut"></div></div>
     </div>
     <input type="hidden" id="pace" value="240"><input type="hidden" id="wind" value="0">
   </div>
@@ -340,7 +346,11 @@ function ui(){
   ["nU","nD","nL","nR","del"].forEach(id=>$(id).disabled=!s);
   $("clr").disabled=!pacers.length;
   const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace;
-  $("paceOut").textContent="= "+de(v,1)+" km/h";
+  const ms=Math.round(KM*pace);
+  $("paceState").textContent=de(v,1)+" km/h";
+  $("paceOut").textContent="Marathon "+Math.floor(ms/3600)+":"+String(Math.floor(ms%3600/60)).padStart(2,"0")+":"+String(ms%60).padStart(2,"0");
+  $("windState").textContent=wind===0?"Windstille":Math.abs(wind)+" km/h "+(wind>0?"Gegenwind":"Rückenwind");
+  $("windState").style.color=windCol(wind);
   $("windOut").textContent=v+wind<3?"kaum Fahrtwind":"Fahrtwind "+de(v+wind,1)+" km/h";
 }
 
@@ -386,7 +396,7 @@ document.querySelector(".tabs").addEventListener("click",ev=>{const b=ev.target.
 $("presets").innerHTML=PRESETS.map(p=>'<button type="button" data-k="'+p.k+'" aria-pressed="false">'+p.t+'</button>').join("");
 $("presets").addEventListener("click",ev=>{const b=ev.target.closest("button");if(b)loadPreset(b.dataset.k);});
 // Rad wie im Laufzeit-Rechner: senkrecht drehen, rastet ein. Tippen auf den oberen oder unteren Wert geht einen Schritt.
-function makeWheel(mountId,vals,fmt,onChange){
+function makeWheel(mountId,vals,fmt,onChange,color){
   const ITEM=32, el=$(mountId), max=(vals.length-1)*ITEM;
   el.innerHTML='<div class="wheel"><div class="wlist">'+vals.map(v=>'<div class="witem">'+fmt(v)+'</div>').join("")+'</div><div class="wband"></div></div>';
   const wheel=el.firstChild, list=wheel.firstChild, items=list.children;
@@ -396,7 +406,7 @@ function makeWheel(mountId,vals,fmt,onChange){
     list.style.transform="translateY("+(ITEM-pos)+"px)";
     const c=idx();
     for(let i=Math.max(0,c-3);i<=Math.min(vals.length-1,c+3);i++){const d=Math.abs(i*ITEM-pos)/ITEM, it=items[i];
-      it.style.opacity=Math.max(0.32,1-d*0.5); it.style.transform="scale("+(d<0.5?1.14:0.88)+")"; it.style.color=d<0.5?"var(--gold)":"";}
+      it.style.opacity=Math.max(0.32,1-d*0.5); it.style.transform="scale("+(d<0.5?1.14:0.88)+")"; it.style.color=d<0.5?(color?color(vals[i]):"var(--gold)"):"";}
     if(c!==cur){cur=c; onChange(vals[c]);}
   }
   const stop=()=>{if(anim){cancelAnimationFrame(anim);anim=null;}};
@@ -427,7 +437,9 @@ function makeWheel(mountId,vals,fmt,onChange){
   return v=>{stop(); pos=Math.max(0,vals.indexOf(v))*ITEM; paint();};
 }
 const range=(a,b,st)=>{const o=[];for(let v=a;v<=b;v+=st)o.push(v);return o;};
-const setWind=makeWheel("wWind",range(-15,30,1),v=>v===0?"Windstille":Math.abs(v)+(v>0?" Gegenwind":" Rückenwind"),v=>{$("wind").value=v;ui();readout();});
+const windCol=v=>v>0?"var(--head)":v<0?"var(--tail)":"var(--ink)";
+const setWind=makeWheel("wWind",range(-15,30,1),v=>(v>0?"+":v<0?"−":"")+Math.abs(v),v=>{$("wind").value=v;ui();readout();},windCol);
+$("wWind").firstChild.insertAdjacentHTML("beforeend",'<div class="wtag t">↑ Rücken</div><div class="wtag b">↓ Gegen</div>');
 const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=v;ui();readout();});
 $("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
 
