@@ -48,9 +48,15 @@ canvas{width:100%;height:auto;display:block}
 .hud div{background:rgba(10,19,32,.82);border-radius:9px;padding:4px 9px 5px;color:#e8edf3;white-space:nowrap}
 .hud b{display:block;font:700 1.12rem var(--display)}
 .hud span{font-size:.66rem;color:#aab8c8}
+.stage.tiny .hud span,.stage.tiny .hud div:last-child{display:none}
+.stage.tiny .hud b{font-size:.92rem}
+.stage.tiny .hud div{padding:3px 7px}
 .dock{flex:none;background:var(--card);border-top:1px solid var(--line);padding:7px 12px 16px;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .stage{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .dockin{max-width:560px;margin:auto}
+.top{display:flex;gap:6px;align-items:flex-start}
+.topt{flex:1;min-width:0}
+.zb{flex:none;width:40px;height:36px;padding:0;font-size:1.25rem;line-height:1}
 .result{font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .status{font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
 .status.warn{color:var(--warn);font-weight:700}
@@ -95,7 +101,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 8</div>
+    <div class="kicker">Testversion 9</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -113,7 +119,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <span><i id="lg1c"></i><span id="lg1"></span></span>
       <span><i id="lg2c"></i><span id="lg2"></span></span>
     </div>
-    <p class="small" style="margin:8px 0 0">Jeder Strich ist ein Luftteilchen, seine Länge zeigt das Tempo. Dunkle Flächen sind ruhige Luft. Tippe auf eine freie Stelle, um einen Pacer zu setzen, und ziehe ihn mit dem Finger. Du bist der goldene Läufer.</p>
+    <p class="small" style="margin:8px 0 0">Jeder Strich ist ein Luftteilchen, seine Länge zeigt das Tempo. Dunkle Flächen sind ruhige Luft. Tippe auf eine freie Stelle, um einen Pacer zu setzen, und ziehe ihn mit dem Finger. Bis zu zehn Pacer sind möglich. Du bist der goldene Läufer. Mit − rechts über den Reitern wird das Feld größer und die Darstellung kleiner: erst 4,8 × 9,6 m, dann das ganze Feld auf einen Blick. Mit + geht es zurück.</p>
   </section>
 
   <section class="panel">
@@ -154,15 +160,18 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <li><strong>Prozentwert unabhängig vom Tempo.</strong> Tempo und Wind ändern im Modell die Kraft in Newton, nicht den Anteil.</li>
       <li><strong>Geeicht, nicht unabhängig.</strong> Weil das Modell an der Studie von Schickhofer und Hanson ausgerichtet ist, kann es deren Zahlen nicht bestätigen.</li>
     </ul>
-    <p class="small" style="margin:10px 0 0">Verfahren: Gitter-Boltzmann (D2Q9) mit Wirbelviskosität nach Smagorinsky, 128 × 240 Zellen zu je 3 cm. Widerstand aus dem Impulsübertrag der Luft an den Körperrändern.</p>
+    <p class="small" style="margin:10px 0 0">Verfahren: Gitter-Boltzmann (D2Q9) mit Wirbelviskosität nach Smagorinsky, 128 × 240 Zellen zu je 3 cm, im großen Feld 160 × 320. Widerstand aus dem Impulsübertrag der Luft an den Körperrändern.</p>
   </section>
 </div>
 </div>
 
 <div class="dock">
 <div class="dockin">
-  <div class="result" id="result">–</div>
-  <div class="status" id="status">–</div>
+  <div class="top">
+    <div class="topt"><div class="result" id="result">–</div><div class="status" id="status">–</div></div>
+    <button type="button" class="zb" id="zOut" aria-label="Feld verkleinern, mehr Platz">−</button>
+    <button type="button" class="zb" id="zIn" aria-label="Feld vergrößern" disabled>+</button>
+  </div>
   <div class="pane" id="pane-form">
     <div class="chips" id="presets"></div>
     <div class="small">Wische die Reihe nach links für weitere Aufstellungen.</div>
@@ -289,15 +298,17 @@ function createSim(NX,NY,P){
 //</core>
 
 // ---- Aufbau ---------------------------------------------------------------
-const DX=0.03, NX=128, NY=240, A=0.225/DX, B=0.125/DX, MX=NX/2, MY=90;
+const DX=0.03, A=0.225/DX, B=0.125/DX, S=6;      // 3 cm je Zelle, 6 Bildpunkte je Zelle
+let NX=128, NY=240, MX=64, MY=90;
 const PAR={U:0.1,nu:0.008,cs:0.16,lam:0.0004,mu:0.2};
 const CAL={nu:0.008,lam:0.0004,mu:0.2};   // Messmodus: geeicht, Strömung beruhigt sich
 const VOR={nu:0.004,lam:0,mu:0};          // Wirbelmodus: reine 2D-Strömung ohne Korrekturen, Wirbel lösen sich ab
 let vortex=false, kept=null, road=false;   // road = Sicht von der Straße aus: die Luft steht, die Läufer reißen sie mit               // kept = letzter Messwert für die aktuelle Aufstellung
-const F0=0.09034818107883136;                       // Widerstand allein, im selben Modell vorab berechnet
-const SETTLE=3000;                     // Schritte, bis sich die Strömung beruhigt hat
-const sim=createSim(NX,NY,PAR);
+let F0=0.09034818107883136;                       // Widerstand allein, im selben Modell vorab berechnet
+let SETTLE=3000;                     // Schritte, bis sich die Strömung beruhigt hat
+let sim=createSim(NX,NY,PAR);
 const me={x:MX,y:MY,a:A,b:B};
+const MAXP=10;                         // höchstens zehn Pacemaker
 let pacers=[], sel=-1, since=0, paused=false, preset="f1";
 const ema=new Float64Array(16);
 
@@ -355,9 +366,11 @@ function ui(){
 }
 
 // ---- Bedienung ------------------------------------------------------------
-const cv=$("cv"), ctx=cv.getContext("2d"), S=cv.width/NX;
+const cv=$("cv"), ctx=cv.getContext("2d");
 const cell=ev=>{const r=cv.getBoundingClientRect();return [(ev.clientX-r.left)/r.width*NX,(ev.clientY-r.top)/r.height*NY];};
-const hit=(x,y)=>pacers.findIndex(q=>Math.abs(q.x-x)<A+4&&Math.abs(q.y-y)<B+6);
+// Trefferfläche wächst mit, wenn das Feld klein dargestellt wird (mindestens 16 Bildpunkte Rand für den Finger)
+function hit(x,y){const pad=Math.max(4,16*NX/cv.getBoundingClientRect().width); let best=-1,bd=1e9;
+  pacers.forEach((q,i)=>{const dx=Math.abs(q.x-x),dy=Math.abs(q.y-y); if(dx<A+pad&&dy<B+pad&&dx+dy<bd){bd=dx+dy;best=i;}}); return best;}
 let dragging=-1, moved=false;
 cv.addEventListener("touchstart",ev=>{const t=ev.touches[0];if(hit(...cell(t))>=0)ev.preventDefault();},{passive:false});
 cv.addEventListener("touchmove",ev=>{if(dragging>=0)ev.preventDefault();},{passive:false});
@@ -370,7 +383,7 @@ cv.addEventListener("pointerup",drop); cv.addEventListener("pointercancel",drop)
 cv.addEventListener("click",ev=>{if(moved){moved=false;return;}const [x,y]=cell(ev);const h=hit(x,y);
   if(h>=0){sel=h;showTab("pacer");ui();return;}
   const n={x,y,a:A,b:B};
-  if(pacers.length<8&&free(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();showTab("pacer");ui();}});
+  if(pacers.length<MAXP&&free(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();showTab("pacer");ui();}});
 function nudge(dx,dy){const q=pacers[sel];if(!q)return;const n={x:q.x+dx*0.05/DX,y:q.y+dy*0.05/DX,a:A,b:B};
   if(free(n,sel)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
 $("nU").onclick=()=>nudge(0,-1); $("nD").onclick=()=>nudge(0,1); $("nL").onclick=()=>nudge(-1,0); $("nR").onclick=()=>nudge(1,0);
@@ -390,6 +403,32 @@ function setView(r){road=r; $("vTunnel").setAttribute("aria-pressed",String(!r))
                              :"Du stehst, die Luft strömt an dir vorbei, wie im Windkanal. Dunkle Zonen sind Luft, die fast so schnell ist wie du.";
   for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;} readout();}
 $("vTunnel").onclick=()=>setView(false); $("vRoad").onclick=()=>setView(true);
+// Drei Stufen: Standardfeld, größeres Feld, größeres Feld ganz auf dem Bildschirm
+const SIZES=[{NX:128,NY:240,MY:90,F0:0.09034818107883136,settle:3000,np:2600,txt:"3,8 × 7,2 m"},
+             {NX:160,NY:320,MY:140,F0:0.09035746588309605,settle:4200,np:4300,txt:"4,8 × 9,6 m"}];
+const ZOOMS=[[0,false],[1,false],[1,true]];
+let zoom=0, sizeIx=0, fieldMsg=0, lost=0;
+function setZoom(z){
+  zoom=Math.max(0,Math.min(ZOOMS.length-1,z)); const [si,fit]=ZOOMS[zoom];
+  if(si!==sizeIx){
+    const rel=pacers.map(q=>[(MY-q.y)*DX,(q.x-MX)*DX]), Z=SIZES[si]; sizeIx=si;
+    NX=Z.NX; NY=Z.NY; MX=NX/2; MY=Z.MY; F0=Z.F0; SETTLE=Z.settle; NP=Z.np;
+    sim=createSim(NX,NY,PAR); me.x=MX; me.y=MY;
+    cv.width=NX*S; cv.height=NY*S; img=new ImageData(NX,NY); off.width=NX; off.height=NY;
+    const n0=rel.length;
+    pacers=rel.map(r=>mk(r[0],r[1])).filter(q=>q.x>=A+1&&q.x<=NX-A-2&&q.y>=B+14&&q.y<=NY-B-16); sel=-1;
+    lost=n0-pacers.length; if(lost) preset="";
+    for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;}
+    ema.fill(0); apply(); ui();
+  }
+  const st=document.querySelector(".stage"), v=document.querySelector(".view");
+  else lost=0;
+  if(fit){st.style.maxWidth=Math.max(150,Math.floor((v.clientHeight-78)*NX/NY))+"px"; v.scrollTop=0;} else st.style.maxWidth="";
+  st.classList.toggle("tiny",fit);
+  $("zOut").disabled=zoom===ZOOMS.length-1; $("zIn").disabled=zoom===0;
+  fieldMsg=40; readout();
+}
+$("zOut").onclick=()=>setZoom(zoom+1); $("zIn").onclick=()=>setZoom(zoom-1);
 function showTab(t){document.querySelectorAll(".tabs [role=tab]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.t===t)));
   ["form","pacer","wind","view"].forEach(k=>$("pane-"+k).hidden=k!==t);}
 document.querySelector(".tabs").addEventListener("click",ev=>{const b=ev.target.closest("[role=tab]");if(b)showTab(b.dataset.t);});
@@ -444,9 +483,9 @@ const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=
 $("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
 
 // ---- Luftteilchen ---------------------------------------------------------
-const NP=2600, px=new Float32Array(NP), py=new Float32Array(NP);
+let NP=2600; const px=new Float32Array(4400), py=new Float32Array(4400);
 for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;}
-const img=new ImageData(NX,NY), off=document.createElement("canvas"); off.width=NX; off.height=NY; const octx=off.getContext("2d");
+let img=new ImageData(NX,NY); const off=document.createElement("canvas"); off.width=NX; off.height=NY; const octx=off.getContext("2d");
 
 function draw(k){
   const {ux,uy,body}=sim, d=img.data, U=PAR.U;
@@ -461,7 +500,7 @@ function draw(k){
   octx.putImageData(img,0,0); ctx.imageSmoothingEnabled=true; ctx.drawImage(off,0,0,cv.width,cv.height);
   // Entfernungsmarken, bezogen auf dich
   ctx.font="600 20px system-ui,sans-serif"; ctx.fillStyle="rgba(170,184,200,.75)"; ctx.strokeStyle="rgba(170,184,200,.22)"; ctx.lineWidth=1.5; ctx.textAlign="left";
-  for(let m=-4;m<=2;m++){const y=(MY-m/DX)*S; if(y<110||y>cv.height-12) continue;
+  for(let m=-6;m<=4;m++){const y=(MY-m/DX)*S; if(y<110||y>cv.height-12) continue;
     ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(m===0?30:18,y);ctx.stroke(); if(m!==0)ctx.fillText((m>0?"+":"−")+Math.abs(m)+" m",24,y+7);}
   // Teilchen als kurze Striche, Länge = Tempo
   const seg=[[],[],[]];
@@ -499,13 +538,15 @@ function readout(){
   let s=0,n=0; for(let y=Math.round(MY-B-7);y<=Math.round(MY-B-3);y++) for(let x=Math.round(MX-A);x<=Math.round(MX+A);x++){const c=y*NX+x;if(!sim.body[c]){s+=sim.uy[c];n++;}}
   const infl=n?Math.max(0,s/n/PAR.U):1;
   const st=$("status"); st.className="status";
+  if(fieldMsg>0){fieldMsg--; st.textContent=lost?lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt.":"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
+    if(lost) st.className="status warn"; var keepMsg=true;}
   if(vortex){
     const k=kept!==null, Fs=KD*Math.pow(Math.max(0,rel)/3.6,2);
     $("drag").textContent=k?(kept>=0?de(100*kept,0)+" % weniger":de(-100*kept,0)+" % mehr"):"–";
     $("dragSub").textContent=k?"Widerstand · Wert aus dem Messmodus":"Widerstand · nicht gemessen";
     $("inflow").textContent="Wirbelbild"; $("inflowSub").textContent="reine 2D-Strömung";
     $("result").textContent="Wirbelmodus: Hier zählt nur das Bild.";
-    st.textContent=k?"Die Prozentzahl stammt aus dem Messmodus.":"Zum Messen den Schalter Wirbel ausschalten."; return;
+    if(!keepMsg) st.textContent=k?"Die Prozentzahl stammt aus dem Messmodus.":"Zum Messen den Schalter Wirbel ausschalten."; return;
   }
   if(rel<3){
     $("drag").textContent="–"; $("dragSub").textContent="Widerstand"; $("inflow").textContent="–"; $("inflowSub").textContent="Luft vor dir";
@@ -521,7 +562,8 @@ function readout(){
   const inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*p*inc/100, en=100*p*inc/(100+inc);
   $("result").textContent=since<400?"Strömung baut sich auf …"
     :(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
-  if(tooClose()){st.textContent="Unter 1 m hintereinander: im Laufen kaum möglich."; st.className="status warn";}
+  if(keepMsg){}
+  else if(tooClose()){st.textContent="Unter 1 m hintereinander: im Laufen kaum möglich."; st.className="status warn";}
   else st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
     :P.ref?"Studienwert: "+de(P.ref,1)+" % weniger ("+P.src+")"
     :P.k==="solo"?"Ohne Pacer. Das ist der Bezugswert.":"Für diese Aufstellung gibt es keinen Studienwert.";
