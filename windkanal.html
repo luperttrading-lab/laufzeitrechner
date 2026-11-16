@@ -102,7 +102,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 12</div>
+    <div class="kicker">Testversion 13</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -131,6 +131,10 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>Die Luft bremst dich nur noch mit einem Fünftel der Kraft, die sie im Alleinlauf bei gleichem Tempo hätte. Darunter steht die Kraft in Newton. Das sind nicht 80 % weniger Anstrengung: Der Luftwiderstand macht nur wenige Prozent deines Energiebedarfs aus.</dd>
       <dt>Berechnung läuft</dt>
       <dd>Nach jeder Änderung an der Aufstellung braucht die Strömung einige Sekunden, bis sie sich eingependelt hat. So lange steht „Berechnung läuft“ da, der goldene Balken am oberen Bildrand füllt sich, die Zahlen erscheinen erst im letzten Drittel und sind bis zum Ende vorläufig. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
+      <dt>Mindestabstand</dt>
+      <dd>Wie dicht ein Pacer an dich oder einen anderen Läufer heran darf, hängt vom seitlichen Versatz ab (Mitte zu Mitte):
+        <span style="display:block;margin-top:4px">unter 30 cm seitlich: mindestens 1,0 m längs<br>30 bis 50 cm: mindestens 0,6 m<br>50 bis 60 cm: mindestens 0,4 m<br>ab 60 cm: nebeneinander möglich</span>
+        Die 1 m direkt hintereinander nennt Pugh (1970) als natürliche Grenze. Die Stufen dazwischen sind eigene Annahmen: Ab etwa 30 cm laufen die Füße nicht mehr in einer Spur, aber Schultern und Arme stoßen noch zusammen.</dd>
       <dt>Gefühlter Wind</dt>
       <dd>So stark müsste der Fahrtwind im Alleinlauf sein, damit dich dieselbe Kraft bremst wie jetzt. Die Kraft wächst mit dem Quadrat des Winds, deshalb gilt: gefühlter Wind = Fahrtwind × Wurzel aus dem Rest-Widerstand. Beispiel: 70 % weniger Widerstand lässt 30 % übrig, die Wurzel daraus ist 0,55, bei 15 km/h sind das 8,2 km/h. Läufst du allein, steht dort dein voller Fahrtwind.</dd>
       <dt>Sekunden pro Kilometer</dt>
@@ -190,7 +194,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <button type="button" id="clr">Alle weg</button>
     </div>
     <div style="font-weight:700;font-size:.86rem;margin-top:8px" id="selInfo">Kein Pacer gewählt</div>
-    <div class="small">Pfeile verschieben um 10 cm. Pacer rasten im 10-cm-Raster ein.</div>
+    <div class="small">Pfeile verschieben um 10 cm. Direkt hintereinander mindestens 1 m, mit seitlichem Versatz dichter.</div>
   </div>
   <div class="pane" id="pane-wind" hidden>
     <div class="wheels">
@@ -352,14 +356,32 @@ const mmss=s=>{s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart
 function place(){sim.setBodies([me].concat(pacers).map(q=>vortex?{x:q.x+0.37,y:q.y,a:q.a,b:q.b}:q)); since=0;}
 function apply(){kept=null; place();}
 function loadPreset(k){const P=PRESETS.find(p=>p.k===k); preset=k; pacers=P.p.map(q=>mk(q[0],q[1])); sel=-1; apply(); ui();}
-function free(q,skip){ // true, wenn q keinen anderen Körper berührt und im Feld liegt
-  if(q.x<A+1||q.x>NX-A-2||q.y<B+14||q.y>NY-B-16) return false;
-  return [me].concat(pacers).every((o,i)=>i-1===skip||Math.abs(o.x-q.x)>=2*A+1||Math.abs(o.y-q.y)>=2*B+1);
+// Mindestabstand längs (Mitte zu Mitte) je nach seitlichem Versatz.
+// Unter 30 cm laufen die Füße in einer Spur: 1 m nach Pugh 1970. Die Stufen dazwischen sind eigene Annahmen.
+const GAPS=[[0.3,1.0],[0.5,0.6],[0.6,0.4]];
+const minGap=w=>{for(const [lim,g] of GAPS) if(w<lim) return g; return 0;};
+const cm=v=>Math.round(v*100);
+// Liefert null, wenn q frei ist, sonst den Grund. skip = Index des Pacers, der gerade bewegt wird (−1 für einen neuen).
+function check(q,skip){
+  if(q.x<A+1||q.x>NX-A-2||q.y<B+14||q.y>NY-B-16) return "Rand des Felds erreicht.";
+  const all=[me].concat(pacers);
+  for(let i=0;i<all.length;i++){
+    if(skip>=0&&i===skip+1) continue;
+    const o=all[i], w=cm(Math.abs(o.x-q.x)*DX)/100, d=cm(Math.abs(o.y-q.y)*DX)/100, g=minGap(w);
+    const overlap=Math.abs(o.x-q.x)<2*A+1&&Math.abs(o.y-q.y)<2*B+1;
+    if(d<g-1e-9||overlap){
+      const wer=i===0?"dir":"einem anderen Pacer";
+      return w<0.3?"Zu dicht an "+wer+": hintereinander mindestens 1 m."
+                  :"Zu dicht an "+wer+": bei "+cm(w)+" cm seitlich mindestens "+de(g,1)+" m längs.";
+    }
+  }
+  return null;
 }
-function tooClose(){const all=[me].concat(pacers);
-  for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++)
-    if(Math.abs(all[i].x-all[j].x)*DX<0.3&&Math.abs(all[i].y-all[j].y)*DX<0.98) return true;
-  return false;}
+const free=(q,skip)=>!check(q,skip);
+let note="", noteN=0;
+function block(q,skip){const r=pacers.length>=MAXP&&skip<0?"Höchstens "+MAXP+" Pacer.":check(q,skip);
+  if(r){note=r;noteN=30;} else noteN=0;   // erfolgreicher Zug löscht die alte Warnung
+  readout(); return !r;}
 function ui(){
   document.querySelectorAll("#presets button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===preset)));
   const s=pacers[sel];
@@ -390,16 +412,16 @@ cv.addEventListener("pointerdown",ev=>{const [x,y]=cell(ev);dragging=hit(x,y);mo
   if(dragging>=0){sel=dragging;try{cv.setPointerCapture(ev.pointerId);}catch(e){}ui();}});
 cv.addEventListener("pointermove",ev=>{if(dragging<0)return;const [cx,cy]=cell(ev),q=pacers[dragging],n={x:snap(cx,MX),y:snap(cy,MY),a:A,b:B};
   if(n.x===q.x&&n.y===q.y) return;
-  if(free(n,dragging)){q.x=n.x;q.y=n.y;moved=true;preset="";apply();ui();}});
+  if(block(n,dragging)){q.x=n.x;q.y=n.y;moved=true;preset="";apply();ui();}});
 const drop=()=>{dragging=-1;};
 cv.addEventListener("pointerup",drop); cv.addEventListener("pointercancel",drop);
 cv.addEventListener("click",ev=>{if(moved){moved=false;return;}const [x,y]=cell(ev);const h=hit(x,y);
   if(h>=0){sel=h;showTab("pacer");ui();return;}
   const n={x:snap(x,MX),y:snap(y,MY),a:A,b:B};
-  if(pacers.length<MAXP&&free(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();showTab("pacer");ui();}});
+  if(block(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();showTab("pacer");ui();}});
 const snap=(v,o)=>o+Math.round((v-o)*DX*10)/10/DX;      // auf volle 10 cm Abstand zu dir
 function nudge(dx,dy){const q=pacers[sel];if(!q)return;const n={x:dx?snap(q.x+dx*0.1/DX,MX):q.x,y:dy?snap(q.y+dy*0.1/DX,MY):q.y,a:A,b:B};
-  if(free(n,sel)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
+  if(block(n,sel)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
 $("nU").onclick=()=>nudge(0,-1); $("nD").onclick=()=>nudge(0,1); $("nL").onclick=()=>nudge(-1,0); $("nR").onclick=()=>nudge(1,0);
 $("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.length?"":"solo";apply();ui();};
 $("clr").onclick=()=>loadPreset("solo");
@@ -580,8 +602,9 @@ function readout(){
   const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace, rel=v+wind;   // rel = Fahrtwind allein, km/h
   const p=1-ema[1]/F0, settling=since<SETTLE, P=PRESETS.find(q=>q.k===preset);
   const st=$("status"); st.className="status";
-  if(fieldMsg>0){fieldMsg--; st.textContent=lost?(lost===1?"1 Pacer lag außerhalb des kleinen Felds und ist entfernt.":lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt."):"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
-    if(lost) st.className="status warn"; var keepMsg=true;}
+  if(noteN>0){noteN--; st.textContent=note; st.className="status warn"; var keepMsg=true;}
+  else if(fieldMsg>0){fieldMsg--; st.textContent=lost?(lost===1?"1 Pacer lag außerhalb des kleinen Felds und ist entfernt.":lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt."):"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
+    if(lost) st.className="status warn"; keepMsg=true;}
   if(vortex){
     $("busy").style.width="0";
     const k=kept!==null, Fs=KD*Math.pow(Math.max(0,rel)/3.6,2);
@@ -608,9 +631,7 @@ function readout(){
   const inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*p*inc/100, en=100*p*inc/(100+inc);
   $("result").textContent=since<0.6*SETTLE?"Berechnung läuft …"
     :(settling?"Berechnung läuft … vorläufig ":"")+(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
-  if(keepMsg){}
-  else if(tooClose()){st.textContent="Unter 1 m hintereinander: im Laufen kaum möglich."; st.className="status warn";}
-  else st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
+  if(!keepMsg) st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
     :P.ref?"Studienwert: "+de(P.ref,1)+" % weniger ("+P.src+")"
     :P.k==="solo"?"Ohne Pacer. Das ist der Bezugswert.":"Für diese Aufstellung gibt es keinen Studienwert.";
 }
