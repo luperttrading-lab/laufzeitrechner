@@ -124,7 +124,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 30</div>
+    <div class="kicker">Testversion 31</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -237,7 +237,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <div class="wcell"><div class="wlabel">Tempo · min/km</div><div id="wPace"></div><div class="wstate" id="paceState"></div><div class="whint" id="paceOut"></div></div>
       <div class="wcell"><div class="wlabel">Schritte · /min</div><div id="wCad"></div><div class="wstate" id="cadState"></div><div class="whint" id="cadOut"></div></div>
     </div>
-    <input type="hidden" id="pace" value="240"><input type="hidden" id="wind" value="0">
+    <input type="hidden" id="pace" value="180"><input type="hidden" id="wind" value="0">
   </div>
   <div class="pane" id="pane-view" hidden>
     <div class="row">
@@ -252,8 +252,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
     <div class="row" style="margin-top:8px">
       <span class="small" style="font-weight:700">Raster</span>
       <button type="button" data-g="0" aria-pressed="false">aus</button>
-      <button type="button" data-g="1" aria-pressed="true">1 m</button>
-      <button type="button" data-g="2" aria-pressed="false">10 cm</button>
+      <button type="button" data-g="1" aria-pressed="false">1 m</button>
+      <button type="button" data-g="2" aria-pressed="true">10 cm</button>
       <button type="button" id="air" aria-pressed="true" style="margin-left:auto">Luft</button>
     </div>
     <div class="small" id="viewHint" style="margin-top:8px;white-space:normal"></div>
@@ -374,7 +374,7 @@ let NX=128, NY=240, MX=64, MY=90;
 const PAR={U:0.1,nu:0.008,cs:0.16,lam:0.0004,mu:0.2};
 const CAL={nu:0.008,lam:0.0004,mu:0.2};   // Messmodus: geeicht, Strömung beruhigt sich
 const VOR={nu:0.004,lam:0,mu:0};          // Wirbelmodus: reine 2D-Strömung ohne Korrekturen, Wirbel lösen sich ab
-let grid=1, showAir=true, cssScale=0.47, topPx=130;   // Raster: 0 aus, 1 Meter, 2 zusätzlich 10 cm
+let grid=2, showAir=true, cssScale=0.47, topPx=130;   // Raster: 0 aus, 1 Meter, 2 zusätzlich 10 cm
 let vortex=false, kept=null, road=false;   // road = Sicht von der Straße aus: die Luft steht, die Läufer reißen sie mit               // kept = letzter Messwert für die aktuelle Aufstellung
 let F0=0.09034818107883136;                       // Widerstand allein, im selben Modell vorab berechnet
 let SETTLE=3000;                     // Schritte, bis sich die Strömung beruhigt hat
@@ -744,8 +744,8 @@ function draw(k){
     ctx.fillStyle=i===0?"#dba84a":"#aab8c8"; ctx.beginPath(); ctx.ellipse(X,Y,q.a*S,q.b*S,0,0,7); ctx.fill();
     ctx.fillStyle=i===0?"#8a6410":"#6c7c8e"; ctx.beginPath(); ctx.arc(X,Y,3.3*S,0,7); ctx.fill();
     if(i>0&&i-1===sel){ctx.strokeStyle="#fff";ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(X,Y,q.a*S+7,q.b*S+7,0,0,7);ctx.stroke();}
-    if(i>0&&M.shown&&!vortex){const p=100*(M.rel[i+1]-1);
-      ctx.font="700 "+(11/cssScale)+"px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#e8edf3";
+    if(M.shown&&!vortex){const p=100*(M.rel[i+1]-1);
+      ctx.font="700 "+((i===0?13:11)/cssScale)+"px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle=i===0?"#f3c86a":"#e8edf3";   // du in Gold und etwas größer
       ctx.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",X,Y-q.b*S-12);}
   });
 }
@@ -1071,7 +1071,7 @@ function drawSide(n){
   // je weiter seitlich, desto stärker zum Hintergrund hin abgedunkelt (deckend gezeichnet: schneller als eine durchscheinende Ebene)
   out.sort((a,b)=>sideW(a.lat)-sideW(b.lat)).forEach(r=>drawFigure(pose(sideT/sp.Tc+r.ph0,sp.v),r.along,false,dimCol(0.22+0.5*sideW(r.lat)),cS));
   inn.forEach(r=>{const P=pose(sideT/sp.Tc+r.ph0,sp.v); drawFigure(P,r.along,r.me,false,cS);
-    if(!r.me&&M.shown&&!vortex){const p=100*(M.rel[r.i+1]-1); cS.font="700 20px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle="#e8edf3";
+    if(M.shown&&!vortex){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
   cS.font="600 18px system-ui,sans-serif"; cS.textAlign="right"; cS.fillStyle="rgba(232,237,243,.75)";
   cS.fillText("Längsschnitt durch dich · "+(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+" · "+Math.round(fpsSm)+" Bilder/s",cvS.width-18,cvS.height-8);
@@ -1137,7 +1137,7 @@ function loop(){
   }
   requestAnimationFrame(loop);
 }
-sendSetup(); loadPreset("f1"); setWind(0); setPace(240); setCad(180); setView(false); loop();
+sendSetup(); loadPreset("f1"); setWind(0); setPace(180); setCad(180); setView(false); loop();
 </script>
 </body>
 </html>
