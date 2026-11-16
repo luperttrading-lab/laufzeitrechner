@@ -122,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 22</div>
+    <div class="kicker">Testversion 23</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -774,118 +774,142 @@ const NX2=110, NY2=224, YME=123, S2=5;         // 3,3 m hoch, 6,7 m lang, du 3,7
 const PAR2={U:0.1,nu:0.004,cs:0.16,lam:0,mu:0.05,walls:true,Ug:0.1};
 const SLICE=0.3;                                // Pacer bis 30 cm seitlich stehen in der Schnittebene
 let sim2=null, map2=null, sideT=0, slow=2;
-// Gangzyklus aus Stützwerten. Phase 0 = Aufsetzen des nahen Fußes. Zwei Profile: Dauerlauf (2,5 m/s) und schnell (ab 5,8 m/s),
-// dazwischen wird linear gemischt. Spitzenwerte nach Fukuchi et al. 2017 (Hüftflexion 44/53/61°, Hüftextension −4/−8/−12°,
-// Knieflexion 94/109/119° bei 2,5/3,5/4,5 m/s), für schnelle Läufer fortgeschrieben. Oberschenkel gegen die Senkrechte
-// (Beckenkippung abgezogen), Knie als Beugung, Sprunggelenk + = Fußspitze hoch.
-const GAIT={
-  thigh:{jog:[[0,22],[0.15,5],[0.38,-12],[0.50,-4],[0.70,20],[0.86,31],[1,22]],
-         fast:[[0,26],[0.12,6],[0.29,-28],[0.42,-14],[0.64,30],[0.83,50],[1,26]]},
-  knee: {jog:[[0,14],[0.14,40],[0.38,18],[0.62,94],[0.80,58],[0.93,20],[1,14]],
-         fast:[[0,18],[0.10,42],[0.29,24],[0.54,128],[0.72,102],[0.90,32],[1,18]]},
-  ankle:{jog:[[0,6],[0.20,22],[0.38,-17],[0.55,-2],[0.75,4],[0.92,8],[1,6]],
-         fast:[[0,4],[0.15,24],[0.29,-24],[0.45,-8],[0.70,6],[0.92,8],[1,4]]},
-  duty:{jog:0.38,fast:0.29}
-};
+// Laufbewegung: Der Fuß steht in der Stützphase fest auf dem Boden (Abrollen über Ferse, Sohle, Ballen), das Bein folgt
+// daraus per Zwei-Gelenk-Rechnung. In der Schwungphase läuft das Sprunggelenk durch Stützpunkte, die zwischen Dauerlauf
+// (2,5 m/s) und schnell (ab 5,8 m/s) gemischt werden: schnell schwingt die Ferse hoch und weit nach hinten.
+// Spitzenwerte der Gelenkwinkel orientieren sich an Fukuchi et al. 2017 (Knie 94/109/119° bei 2,5/3,5/4,5 m/s), schnell fortgeschrieben.
 const SEG={thigh:0.44,shank:0.44,torso:0.52,uarm:0.29,farm:0.26};
-function curve(name,s){const J=GAIT[name].jog,F=GAIT[name].fast; return J.map((p,i)=>[p[0]+(F[i][0]-p[0])*s, p[1]+(F[i][1]-p[1])*s]);}
-// glatte, periodische Kurve durch die Stützwerte (Hermite mit Steigungen aus den Nachbarn)
-function spline(K,ph){
-  ph=((ph%1)+1)%1; const n=K.length-1;           // letzter Punkt = erster Punkt um 1 verschoben
-  let i=0; while(i<n-1&&ph>K[i+1][0]) i++;
-  const P=j=>{const w=((j%n)+n)%n, off=Math.floor(j/n); return [K[w][0]+off,K[w][1]];};
-  const p0=P(i-1),p1=P(i),p2=P(i+1),p3=P(i+2), h=p2[0]-p1[0], t=(ph-p1[0])/h;
-  const m1=(p2[1]-p0[1])/(p2[0]-p0[0])*h, m2=(p3[1]-p1[1])/(p3[0]-p1[0])*h;
-  const t2=t*t,t3=t2*t; return (2*t3-3*t2+1)*p1[1]+(t3-2*t2+t)*m1+(-2*t3+3*t2)*p2[1]+(t3-t2)*m2;
+const RAD=Math.PI/180, HS=0.055, HEEL=0.07, BALL=0.2;        // Sohle unter dem Sprunggelenk, Ferse und Ballen längs des Fußes
+// Schwungphase: [Anteil, vor, hoch] des Sprunggelenks relativ zum Hüftgelenk
+const SWING={jog:[[0.2,-0.453,-0.636],[0.45,-0.315,-0.524],[0.62,-0.117,-0.664],[0.82,0.17,-0.785],[0.93,0.23,-0.805]],
+             fast:[[0.2,-0.59,-0.42],[0.45,-0.25,-0.32],[0.62,0.05,-0.56],[0.82,0.3,-0.73],[0.93,0.32,-0.775]]};
+const sstep=t=>{t=t<0?0:t>1?1:t; return t*t*(3-2*t);};
+function gaitParams(v){
+  const s=Math.max(0,Math.min(1,(v-2.5)/3.3));
+  const Tc=60/Math.max(78,Math.min(95,81+5.5*(v-2.5)));           // Doppelschritte je Minute nach Fukuchi et al., gedeckelt
+  const duty=Math.min(0.38-0.09*s,1.0/(Math.max(v,1)*Tc));          // Bodenkontakt höchstens 1 m Weg
+  const Ls=v*duty*Tc, ts=duty*Tc, tf=(0.5-duty)*Tc;
+  return {s,Tc,duty,Ls,h0:0.88,dip:Math.min(0.06,ts*9.81*tf/(2*Math.PI)),apex:9.81*tf*tf/8,
+          px:0.04+0.02*s,xtd:0.11+0.14*Ls,thTd:(-12+10*s)*RAD,thTo:(50+12*s)*RAD,
+          keys:SWING.jog.map((k,i)=>k.map((a,j)=>a+(SWING.fast[i][j]-a)*s))};
 }
-const RAD=Math.PI/180;
-function legRel(ph,G){       // Gelenke eines Beins relativ zur Hüfte [vor, hoch]
-  const th=spline(G.th,ph)*RAD, kn=spline(G.kn,ph)*RAD, an=spline(G.an,ph)*RAD, a=th-kn;
-  const knee=[SEG.thigh*Math.sin(th),-SEG.thigh*Math.cos(th)], ank=[knee[0]+SEG.shank*Math.sin(a),knee[1]-SEG.shank*Math.cos(a)];
-  const fa=a+Math.PI/2+an;                       // Fußrichtung: rechtwinklig zum Unterschenkel, plus Sprunggelenk
-  const fd=[Math.sin(fa),-Math.cos(fa)], dn=[-fd[1],fd[0]];   // dn zeigt von der Sohle weg nach oben
-  const heel=[ank[0]-0.07*fd[0]-0.065*dn[0],ank[1]-0.07*fd[1]-0.065*dn[1]], toe=[ank[0]+0.20*fd[0]-0.045*dn[0],ank[1]+0.20*fd[1]-0.045*dn[1]];
-  return {th,knee,ank,heel,toe,fd,dn,low:Math.min(heel[1],toe[1])};
+function hipHeight(ph,G){const q=((ph%0.5)+0.5)%0.5;
+  if(q<G.duty) return G.h0-G.dip*Math.sin(Math.PI*q/G.duty);
+  const u=(q-G.duty)/(0.5-G.duty); return G.h0+G.apex*4*u*(1-u);}
+// Beckendrehung: das Hüftgelenk des Standbeins wandert von vorn nach hinten
+function hipX(ph,G){return ph<G.duty?G.px*Math.cos(Math.PI*ph/G.duty):-G.px*Math.cos(Math.PI*(ph-G.duty)/(1-G.duty));}
+// Stützphase: Sprunggelenk und Fußneigung (th > 0 = Spitze nach unten), s = Anteil der Stützphase, auch leicht außerhalb 0..1
+function stanceFoot(s,G){
+  const gh=(G.xtd+G.px)-HEEL-G.Ls*s;                                 // Fersenpunkt auf dem Boden, wandert mit der Straße
+  let th;
+  if(s<0.18) th=G.thTd*(1-sstep(s/0.18)); else if(s<0.42) th=0; else th=G.thTo*Math.pow(sstep((s-0.42)/0.58),1.15);
+  const c=Math.cos(th), sn=Math.sin(th);
+  if(s<0.42) return {x:gh+HEEL*c+HS*sn,z:-HEEL*sn+HS*c,th};                          // Drehpunkt Ferse
+  return {x:gh+HEEL+BALL-BALL*c+HS*sn,z:BALL*sn+HS*c,th};                              // Drehpunkt Ballen
 }
-// Pose für Phase ph und Tempo v (m/s). Liefert Gelenke [vor, hoch] in Metern über dem Boden.
+// Glatte Kurve durch die Punkte K = [t, x, z]; Steigungen an den Enden vorgegeben (m0, m1), innen aus den Nachbarn
+function hermite(K,t,j,m0,m1){let i=0; while(i<K.length-2&&t>K[i+1][0]) i++;
+  const p1=K[i],p2=K[i+1],h=p2[0]-p1[0],u=(t-p1[0])/h;
+  const sl=n=>n===0?m0:n===K.length-1?m1:(K[n+1][j]-K[n-1][j])/(K[n+1][0]-K[n-1][0]);
+  const a=sl(i)*h,b=sl(i+1)*h,u2=u*u,u3=u2*u;
+  return (2*u3-3*u2+1)*p1[j]+(u3-2*u2+u)*a+(-2*u3+3*u2)*p2[j]+(u3-u2)*b;}
+function leg(ph,G){
+  ph=((ph%1)+1)%1; const d=G.duty, H=[hipX(ph,G),hipHeight(ph,G)];
+  const rel=p=>{const f=stanceFoot(p/d,G); return [f.x-hipX(((p%1)+1)%1,G),f.z-hipHeight(p,G)];};   // Stützphase relativ zum Hüftgelenk
+  let ax,az,th;
+  if(ph<=d){const f=stanceFoot(ph/d,G); ax=f.x; az=f.z; th=f.th;}
+  else{
+    // Schwung: Kurve durch die Stützpunkte, an beiden Enden mit Ort und Geschwindigkeit der Stützphase
+    const w=(ph-d)/(1-d), e=0.004, a=rel(d-e), b=rel(d), c2=rel(0), c3=rel(e), q=(1-d)/e;
+    const K=[[0,b[0],b[1]]].concat(G.keys,[[1,c2[0],c2[1]]]);
+    ax=H[0]+hermite(K,w,1,(b[0]-a[0])*q,(c3[0]-c2[0])*q); az=H[1]+hermite(K,w,2,(b[1]-a[1])*q,(c3[1]-c2[1])*q);
+  }
+  // Zwei-Gelenk-Rechnung: Knie nach vorn
+  let dx=ax-H[0], dz=az-H[1], dd=Math.hypot(dx,dz); const L=SEG.thigh, M=SEG.shank, mx=L+M-0.004;
+  if(dd>mx){ax=H[0]+dx/dd*mx; az=H[1]+dz/dd*mx; dx=ax-H[0]; dz=az-H[1]; dd=mx;}
+  if(az<HS*0.9&&ph>d) az=HS*0.9;
+  const phi=Math.atan2(dx,-dz), al=Math.acos(Math.max(-1,Math.min(1,(L*L+dd*dd-M*M)/(2*L*dd)))), tha=phi+al;
+  const knee=[H[0]+L*Math.sin(tha),H[1]-L*Math.cos(tha)], ash=Math.atan2(ax-knee[0],-(az-knee[1]));     // Unterschenkel gegen die Senkrechte
+  if(ph>d){                                                          // Schwung: Sprunggelenkwinkel gleitet vom Abstoß zur Landung
+    const fo=stanceFoot(1,G), ft=stanceFoot(0,G), lo=leg._ends(G);
+    const dTo=-lo.aTo-fo.th, dTd=-lo.aTd-ft.th, w=(ph-d)/(1-d);
+    th=-ash-(dTo+(dTd-dTo)*sstep(w/0.5));
+  }
+  const fd=[Math.cos(th),-Math.sin(th)], dn=[Math.sin(th),Math.cos(th)], ank=[ax,az];
+  return {hip:H,knee,ank,fd,dn,tha,ash,heel:[ax-HEEL*fd[0]-HS*dn[0],az-HEEL*fd[1]-HS*dn[1]],toe:[ax+BALL*fd[0]-HS*dn[0],az+BALL*fd[1]-HS*dn[1]]};
+}
+// Unterschenkelwinkel bei Abstoß und Landung (für den Übergang des Sprunggelenks), je Tempo gemerkt
+leg._ends=G=>{ if(G._e) return G._e; const sh=(p)=>{const f=stanceFoot(p/G.duty,G), H=[hipX(p,G),hipHeight(p,G)];
+    let dx=f.x-H[0],dz=f.z-H[1],dd=Math.min(Math.hypot(dx,dz),SEG.thigh+SEG.shank-0.004); const L=SEG.thigh,M=SEG.shank;
+    const sc=dd/Math.hypot(dx,dz); dx*=sc; dz*=sc;
+    const tha=Math.atan2(dx,-dz)+Math.acos(Math.max(-1,Math.min(1,(L*L+dd*dd-M*M)/(2*L*dd)))), k=[H[0]+L*Math.sin(tha),H[1]-L*Math.cos(tha)];
+    return Math.atan2(H[0]+dx-k[0],-(H[1]+dz-k[1]));};
+  return G._e={aTo:sh(G.duty),aTd:sh(0)}; };
+const GCACHE={};
+// Pose für Phase ph (0 = nahes Bein setzt auf) und Tempo v in m/s. Alle Punkte [vor, hoch] in Metern.
 function pose(ph,v){
-  const s=Math.max(0,Math.min(1,(v-2.5)/3.3)), G={th:curve("thigh",s),kn:curve("knee",s),an:curve("ankle",s)};
-  const duty=GAIT.duty.jog+(GAIT.duty.fast-GAIT.duty.jog)*s, Tc=60/Math.max(78,Math.min(95,81+5.5*(v-2.5)));
+  const key=Math.round(v*50), G=GCACHE[key]||(GCACHE[key]=gaitParams(key/50));
   ph=((ph%1)+1)%1;
-  const A=legRel(ph,G), B=legRel(ph+0.5,G), q=ph%0.5;
-  // Hüfthöhe: in der Stützphase steht der Fuß auf dem Boden, in der Flugphase ein Wurfbogen
-  let hz;
-  if(q<duty) hz=-(ph<0.5?A:B).low;
-  else{const u=(q-duty)/(0.5-duty), tf=(0.5-duty)*Tc, z0=-legRel(duty,G).low, z1=-legRel(0,G).low;
-    hz=z0+(z1-z0)*u+9.81*tf*tf/8*4*u*(1-u);}
+  const A=leg(ph,G), B=leg(ph+0.5,G), hz=hipHeight(ph,G), s=G.s;
   const lean=(5+4*s)*RAD, up=L=>[L*Math.sin(lean),hz+L*Math.cos(lean)];
-  const sh=up(SEG.torso-0.04), chest=up(0.36);
-  const amp=(30+20*s)*RAD;
-  // Arm schwingt gegen das Bein der anderen Seite; Oberschenkelwinkel auf −1..1 normiert
-  const thMid=(spline(G.th,0.83)+spline(G.th,duty))/2*RAD, thHalf=(spline(G.th,0.83)-spline(G.th,duty))/2*RAD;
-  const arm=(thO)=>{const al=amp*(thO-thMid)/thHalf-6*RAD, el=[sh[0]+SEG.uarm*Math.sin(al),sh[1]-SEG.uarm*Math.cos(al)];
-    const fl=(88+(18+12*s)*Math.max(-1,Math.min(1,al/amp)))*RAD, b=al+fl;
+  const sh=up(SEG.torso-0.04), amp=(26+16*s)*RAD;
+  const arm=p=>{const cs=Math.cos(2*Math.PI*(p-G.duty-0.04)), al=amp*cs-5*RAD;         // vorn, wenn das eigene Bein hinten abstößt
+    const el=[sh[0]+SEG.uarm*Math.sin(al),sh[1]-SEG.uarm*Math.cos(al)], b=al+(86+(16+10*s)*cs)*RAD;
     return {el,ha:[el[0]+SEG.farm*Math.sin(b),el[1]-SEG.farm*Math.cos(b)]};};
-  const abs=o=>({knee:[o.knee[0],o.knee[1]+hz],ank:[o.ank[0],o.ank[1]+hz],heel:[o.heel[0],o.heel[1]+hz],toe:[o.toe[0],o.toe[1]+hz],fd:o.fd,dn:o.dn});
-  return {hip:[0,hz],chest,neck:up(SEG.torso),head:up(SEG.torso+0.17),sh,A:abs(A),B:abs(B),armN:arm(B.th),armF:arm(A.th),lean,Tc,duty};
+  return {hip:[0,hz],chest:up(0.36),neck:up(SEG.torso),head:up(SEG.torso+0.175),sh,A,B,armN:arm(ph+0.5),armF:arm(ph),lean,Tc:G.Tc,duty:G.duty,G};
 }
 // Figur zeichnen: X(p), Y(p) rechnen Meter in Bildpunkte um, k = Bildpunkte je Meter
 function drawRunnerFig(c,P,X,Y,k,col,faded){
   c.save(); c.globalAlpha=faded?0.32:1; c.lineJoin="round"; c.lineCap="round";
-  const dark=(h,f)=>{const n=parseInt(h.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;return "rgb("+[r,g,b].map(x=>Math.round(x*f)).join(",")+")";};
-  const pt=p=>[X(p),Y(p)];
+  const dark=(h,f)=>{const n=parseInt(h.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;return "rgb("+[r,g,b].map(x=>Math.round(Math.min(255,x*f))).join(",")+")";};
+  const pt=p=>[X(p),Y(p)], lerp=(p,q,t)=>[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t];
   // Glied mit zwei Radien: Trapez zwischen den Endkreisen
   const taper=(p,q,r1,r2,fill)=>{const [x1,y1]=pt(p),[x2,y2]=pt(q),dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy)||1e-6,nx=-dy/L,ny=dx/L,a=r1*k,b=r2*k;
     c.fillStyle=fill; c.beginPath(); c.moveTo(x1+nx*a,y1+ny*a); c.lineTo(x2+nx*b,y2+ny*b); c.lineTo(x2-nx*b,y2-ny*b); c.lineTo(x1-nx*a,y1-ny*a); c.closePath(); c.fill();
     c.beginPath(); c.arc(x1,y1,a,0,7); c.fill(); c.beginPath(); c.arc(x2,y2,b,0,7); c.fill();};
-  const lerp=(p,q,t)=>[p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t];
-  const shoe=(L,f,soleCol,upCol)=>{const a=L.ank,fd=L.fd,dn=L.dn,o=(u,w)=>pt([a[0]+fd[0]*u+dn[0]*w,a[1]+fd[1]*u+dn[1]*w]);
-    const S=[o(-0.085,-0.07),o(0.21,-0.05),o(0.215,-0.03),o(0.17,0.0),o(0.05,0.035),o(-0.05,0.045),o(-0.09,0.0)];
-    c.fillStyle=dark(upCol,f); c.beginPath(); S.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.closePath(); c.fill();
-    const s1=o(-0.085,-0.07),s2=o(0.21,-0.05),s3=o(0.205,-0.035),s4=o(-0.09,-0.05);   // Sohle
-    c.fillStyle=dark(soleCol,f); c.beginPath(); c.moveTo(...s1); c.lineTo(...s2); c.lineTo(...s3); c.lineTo(...s4); c.closePath(); c.fill();};
+  // Stück mit geradem Abschluss am Ende (Hosenbein, Ärmel): oben rund, unten gerade Kante
+  const cuff=(p,q,r1,r2,fill,edge)=>{const [x1,y1]=pt(p),[x2,y2]=pt(q),dx=x2-x1,dy=y2-y1,L=Math.hypot(dx,dy)||1e-6,nx=-dy/L,ny=dx/L,a=r1*k,b=r2*k;
+    c.fillStyle=fill; c.beginPath(); c.arc(x1,y1,a,0,7); c.fill();
+    c.beginPath(); c.moveTo(x1+nx*a,y1+ny*a); c.lineTo(x2+nx*b,y2+ny*b); c.lineTo(x2-nx*b,y2-ny*b); c.lineTo(x1-nx*a,y1-ny*a); c.closePath(); c.fill();
+    if(edge){c.strokeStyle=edge; c.lineWidth=0.012*k; c.lineCap="butt"; c.beginPath(); c.moveTo(x2+nx*b,y2+ny*b); c.lineTo(x2-nx*b,y2-ny*b); c.stroke(); c.lineCap="round";}};
+  const shoe=(L,f)=>{const a=L.ank,fd=L.fd,dn=L.dn,o=(u,w)=>pt([a[0]+fd[0]*u+dn[0]*w,a[1]+fd[1]*u+dn[1]*w]);
+    const S=[o(-0.085,-0.055),o(0.2,-0.055),o(0.218,-0.035),o(0.19,-0.005),o(0.1,0.025),o(0.03,0.05),o(-0.05,0.055),o(-0.09,0.01)];
+    c.fillStyle=dark(col.shoe,f); c.beginPath(); S.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1])); c.closePath(); c.fill();
+    const s1=o(-0.088,-0.055),s2=o(0.203,-0.055),s3=o(0.214,-0.036),s4=o(-0.092,-0.034);   // Sohle
+    c.fillStyle=dark(col.sole,f); c.beginPath(); c.moveTo(...s1); c.lineTo(...s2); c.lineTo(...s3); c.lineTo(...s4); c.closePath(); c.fill();};
   const leg=(L,f)=>{const mid=lerp(L.knee,L.ank,0.35);
-    taper(P.hip,L.knee,0.085,0.056,dark(col.skin,f)); taper(L.knee,mid,0.056,0.06,dark(col.skin,f)); taper(mid,L.ank,0.06,0.034,dark(col.skin,f));
-    shoe(L,f,col.sole,col.shoe); taper(P.hip,lerp(P.hip,L.knee,0.4),0.088,0.066,dark(col.shorts,f));};
-  // lockere Läuferfaust: abgerundeter Block in Unterarmrichtung, Fingerknöchel dunkler, Daumen oben
+    taper(L.hip,L.knee,0.082,0.056,dark(col.skin,f)); taper(L.knee,mid,0.056,0.06,dark(col.skin,f)); taper(mid,L.ank,0.06,0.034,dark(col.skin,f));
+    shoe(L,f); cuff(L.hip,lerp(L.hip,L.knee,0.47),0.105,0.098,dark(col.shorts,f),dark(col.shorts,f*1.35));};   // Hosenbein, leicht ausgestellt
+  // lockere Läuferfaust: abgerundeter Block in Unterarmrichtung, Daumen oben
   const fist=(e,h,f)=>{const [x1,y1]=pt(e),[x2,y2]=pt(h),ang=Math.atan2(y2-y1,x2-x1);
-    c.save(); c.translate(x2,y2); c.rotate(ang);
-    const up=Math.sin(ang)>0?-1:1;                 // Seite, die auf dem Bildschirm nach oben zeigt (Daumenseite)
-    const L=0.078*k, W=0.037*k, r=0.03*k;
-    c.fillStyle=dark(col.skin,f); c.beginPath();
-    c.moveTo(-0.01*k,-W); c.lineTo(L-r,-W); c.quadraticCurveTo(L,-W,L,-W+r); c.lineTo(L,W-r); c.quadraticCurveTo(L,W,L-r,W);
+    c.save(); c.translate(x2,y2); c.rotate(ang); const up=Math.sin(ang)>0?-1:1, L=0.078*k, W=0.037*k, r=0.03*k;
+    c.fillStyle=dark(col.skin,f); c.beginPath(); c.moveTo(-0.01*k,-W); c.lineTo(L-r,-W); c.quadraticCurveTo(L,-W,L,-W+r); c.lineTo(L,W-r); c.quadraticCurveTo(L,W,L-r,W);
     c.lineTo(-0.01*k,W); c.closePath(); c.fill();
-    c.strokeStyle=dark(col.skin,f*0.8); c.lineWidth=0.005*k; c.beginPath();               // Fingerglieder
-    for(const t of [0.45,0.7]){c.moveTo(L*t,-W*0.85*up); c.lineTo(L*t,W*0.2*up);} c.stroke();
-    c.fillStyle=dark(col.skin,f*0.93); c.beginPath(); c.ellipse(L*0.55,W*0.95*up,0.03*k,0.014*k,0.25*up,0,7); c.fill();   // Daumen
-    c.restore();};
-  const arm=(a,f)=>{taper(P.sh,a.el,0.047,0.036,dark(col.skin,f)); taper(a.el,a.ha,0.036,0.026,dark(col.skin,f));
-    fist(a.el,a.ha,f);
-    taper(P.sh,lerp(P.sh,a.el,0.35),0.055,0.048,dark(col.shirt,f));};
-  arm(P.armF,0.62); leg(P.B,0.62);                           // ferne Seite dunkler
-  taper(P.sh,P.neck,0.05,0.045,col.skin);
-  taper(P.hip,P.chest,0.1,0.12,col.shirt); taper(P.chest,P.sh,0.12,0.095,col.shirt);
-  taper(P.hip,lerp(P.hip,P.chest,0.22),0.1,0.1,col.shorts);
+    c.strokeStyle=dark(col.skin,f*0.8); c.lineWidth=0.005*k; c.beginPath(); for(const t of [0.45,0.7]){c.moveTo(L*t,-W*0.85*up); c.lineTo(L*t,W*0.2*up);} c.stroke();
+    c.fillStyle=dark(col.skin,f*0.93); c.beginPath(); c.ellipse(L*0.55,W*0.95*up,0.03*k,0.014*k,0.25*up,0,7); c.fill(); c.restore();};
+  const arm=(a,f)=>{taper(P.sh,a.el,0.047,0.036,dark(col.skin,f)); taper(a.el,a.ha,0.036,0.026,dark(col.skin,f)); fist(a.el,a.ha,f);
+    cuff(P.sh,lerp(P.sh,a.el,0.42),0.058,0.054,dark(col.shirt,f),null);};
+  arm(P.armF,0.62); leg(P.B,0.62);                                   // ferne Seite dunkler
+  taper(P.sh,P.neck,0.052,0.048,col.skin);
+  taper(lerp(P.hip,P.chest,0.3),P.chest,0.108,0.122,col.shirt); taper(P.chest,P.sh,0.122,0.098,col.shirt);
+  // Hose am Becken: gerader Bund quer zum Rumpf, darunter das Becken
+  cuff(P.hip,lerp(P.hip,P.chest,0.36),0.108,0.11,col.shorts,dark(col.shorts,1.35));
   leg(P.A,1); arm(P.armN,1);
-  // Kopf im Profil, Blick in Laufrichtung. Lokale Koordinaten: u nach vorn, w nach oben, in Einheiten des Kopfradius.
-  const R=0.105*k, fwd=X([1,0])<X([0,0])?-1:1;
-  c.save(); c.translate(X(P.head),Y(P.head)); c.rotate(-fwd*P.lean*0.6); c.scale(fwd,1);
-  const path=pts=>{c.beginPath(); c.moveTo(pts[0][0]*R,-pts[0][1]*R);
-    for(let i=1;i<pts.length-1;i++){const m=[(pts[i][0]+pts[i+1][0])/2,(pts[i][1]+pts[i+1][1])/2]; c.quadraticCurveTo(pts[i][0]*R,-pts[i][1]*R,m[0]*R,-m[1]*R);}
-    const z=pts[pts.length-1]; c.lineTo(z[0]*R,-z[1]*R); c.closePath();};
+  // Kopf im Profil, Blick in Laufrichtung. Lokale Koordinaten in Einheiten des Kopfradius: u nach vorn, w nach oben.
+  const R=0.112*k, fwd=X([1,0])<X([0,0])?-1:1;
+  c.save(); c.translate(X(P.head),Y(P.head)); c.rotate(-fwd*P.lean*0.5); c.scale(fwd,1);
+  const path=pts=>{const n=pts.length, m=(a,b)=>[(a[0]+b[0])/2*R,-(a[1]+b[1])/2*R]; let s0=m(pts[n-1],pts[0]);   // geschlossene, geglättete Kurve
+    c.beginPath(); c.moveTo(s0[0],s0[1]); for(let i=0;i<n;i++){const e=m(pts[i],pts[(i+1)%n]); c.quadraticCurveTo(pts[i][0]*R,-pts[i][1]*R,e[0],e[1]);} c.closePath();};
   c.fillStyle=col.skin;
-  path([[-0.45,-0.85],[-0.95,-0.35],[-0.98,0.25],[-0.6,0.85],[0.15,1.0],[0.7,0.66],[0.88,0.32],[0.86,0.14],[0.97,0.0],[1.2,-0.2],
-        [1.13,-0.27],[0.95,-0.27],[0.99,-0.38],[0.9,-0.47],[0.98,-0.55],[0.92,-0.76],[0.6,-0.92],[0.15,-0.86],[0.05,-1.05],[-0.4,-1.05]]); c.fill();
-  c.fillStyle=dark(col.skin,0.9); c.beginPath(); c.ellipse(0.62*R,-0.35*R,0.22*R,0.12*R,-0.2,0,7); c.fill();      // Wangenschatten
-  c.fillStyle=dark(col.skin,0.82); c.beginPath(); c.ellipse(-0.18*R,0.02*R,0.13*R,0.21*R,0.15,0,7); c.fill();           // Ohr
-  c.fillStyle=col.hair;                                                                                                // Haare
-  path([[0.66,0.64],[0.25,1.07],[-0.5,1.0],[-1.02,0.35],[-0.97,-0.15],[-0.78,-0.42],[-0.6,-0.2],[-0.4,0.2],[-0.12,0.3],[-0.02,0.08],[0.12,0.5],[0.5,0.56]]); c.fill();
-  c.fillStyle="#f4efe8"; c.beginPath(); c.ellipse(0.66*R,0.12*R,0.1*R,0.055*R,0,0,7); c.fill();                     // Auge
-  c.fillStyle="#1b1612"; c.beginPath(); c.arc(0.72*R,0.12*R,0.045*R,0,7); c.fill();
-  c.strokeStyle=col.hair; c.lineWidth=0.05*R; c.beginPath(); c.moveTo(0.48*R,-0.3*R); c.quadraticCurveTo(0.65*R,-0.36*R,0.82*R,-0.3*R); c.stroke();   // Augenbraue
-  c.strokeStyle=dark(col.skin,0.7); c.lineWidth=0.04*R; c.beginPath(); c.moveTo(0.84*R,0.45*R); c.lineTo(0.95*R,0.44*R); c.stroke();               // Mund
-  c.restore();
-  c.restore();
+  path([[-0.5,-0.8],[-0.98,-0.25],[-0.9,0.55],[-0.25,1.02],[0.45,0.9],[0.82,0.5],[0.9,0.2],[0.85,0.04],[1.06,-0.2],[0.9,-0.3],
+        [0.9,-0.42],[0.83,-0.5],[0.87,-0.6],[0.82,-0.82],[0.55,-0.98],[0.15,-0.82],[-0.3,-0.78]]); c.fill();
+  c.fillStyle=col.hair;
+  path([[0.6,0.8],[-0.2,1.08],[-0.98,0.6],[-1.04,-0.05],[-0.88,-0.42],[-0.58,-0.4],[-0.42,0.0],[-0.3,0.26],[-0.02,0.3],[0.1,0.04],[0.2,0.3],[0.5,0.52]]); c.fill();
+  c.fillStyle=dark(col.skin,0.84); c.beginPath(); c.ellipse(-0.2*R,0.04*R,0.12*R,0.19*R,0.12,0,7); c.fill();           // Ohr
+  c.fillStyle="#241a14"; c.beginPath(); c.ellipse(0.63*R,-0.1*R,0.06*R,0.048*R,0,0,7); c.fill();                      // Auge
+  c.strokeStyle=col.hair; c.lineWidth=0.055*R; c.lineCap="round"; c.beginPath(); c.moveTo(0.5*R,-0.27*R); c.quadraticCurveTo(0.66*R,-0.33*R,0.8*R,-0.26*R); c.stroke();   // Braue
+  c.strokeStyle=dark(col.skin,0.68); c.lineWidth=0.045*R; c.beginPath(); c.moveTo(0.7*R,0.5*R); c.lineTo(0.84*R,0.5*R); c.stroke();                           // Mund
+  c.restore(); c.restore();
 }
 
 // Kapseln (Strecke mit Radius) in die Körperkarte der Seitenrechnung eintragen
@@ -900,7 +924,7 @@ function capsule(map,p,q,r,id,al){
 }
 function rasterRunner(map,P,id,al){
   capsule(map,P.hip,P.neck,0.12,id,al); capsule(map,P.head,P.head,0.11,id,al);
-  for(const L of [P.A,P.B]){capsule(map,P.hip,L.knee,0.075,id,al);capsule(map,L.knee,L.ank,0.055,id,al);capsule(map,L.heel,L.toe,0.04,id,al);}
+  for(const L of [P.A,P.B]){capsule(map,L.hip,L.knee,0.075,id,al);capsule(map,L.knee,L.ank,0.055,id,al);capsule(map,L.heel,L.toe,0.04,id,al);}
   for(const a of [P.armN,P.armF]){capsule(map,P.sh,a.el,0.045,id,al);capsule(map,a.el,a.ha,0.04,id,al);}
 }
 
@@ -917,16 +941,19 @@ function sideParams(){
   const Tc=60/Math.max(78,Math.min(95,81+5.5*(v-2.5)));                    // Doppelschritte je Minute nach Fukuchi et al., gedeckelt
   return {v,rel,Tc,dtp:DX*PAR2.U/Math.max(rel,0.5)};                       // dtp = Sekunden je Rechenschritt
 }
+let rateSm=0, lastSide=0;
 function sideStep(){
   const sp=sideParams(); if(sp.rel<0.8) return 0;
   PAR2.Ug=PAR2.U*sp.v/sp.rel;                                              // die Straße läuft mit dem Lauftempo unter euch durch
   const L=sideRunners().filter(r=>Math.abs(r.lat)<SLICE); let n=0; const t0=performance.now();
-  do{
-    if(n%3===0){map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); sim2.setMap(map2);}
-    sim2.step(); sideT+=sp.dtp; n++;
-  }while(n<12&&performance.now()-t0<8);
+  const dtR=lastSide?Math.min(0.1,Math.max(0.004,(t0-lastSide)/1000)):1/60; lastSide=t0;   // echte Zeit seit dem letzten Bild
+  map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); sim2.setMap(map2);
+  do{sim2.step(); n++;}while(n<12&&performance.now()-t0<8);
   if(sim2.ux[NX2*5+5]!==sim2.ux[NX2*5+5]){sim2.reset(); sideT=0;}          // Rechnung entgleist: neu starten
-  slowAvg+=0.05*((1/60)/(n*sp.dtp)-slowAvg);
+  // Die Figuren laufen gleichmäßig nach der Uhr. Wie stark die Zeitlupe ist, folgt geglättet dem Rechentempo:
+  // schwankt die Zahl der Rechenschritte von Bild zu Bild, stockt die Bewegung dadurch nicht mehr.
+  const raw=n*sp.dtp/dtR; rateSm=rateSm?rateSm+0.04*(raw-rateSm):raw;
+  sideT+=rateSm*dtR; slowAvg=1/rateSm;
   return n;
 }
 function enterSide(on){
@@ -941,8 +968,8 @@ function enterSide(on){
   setView(road);
 }
 const cY=x=>(NX2-1-x+0.5)*S2, groundY=()=>cY(1);
-const COL_ME={skin:"#c8936a",shirt:"#dba84a",shorts:"#2b3442",shoe:"#e9b44c",sole:"#f2f4f6",hair:"#3a2a20"};
-const COL_PACE={skin:"#c8936a",shirt:"#3b4a5e",shorts:"#1d242e",shoe:"#ff6f9c",sole:"#f2f4f6",hair:"#2a201a"};
+const COL_ME={skin:"#c8936a",shirt:"#dba84a",shorts:"#2f4a7a",shoe:"#f2c14e",sole:"#f2f4f6",hair:"#3a2a20"};
+const COL_PACE={skin:"#c8936a",shirt:"#8fa0b8",shorts:"#3b4658",shoe:"#ff6f9c",sole:"#f2f4f6",hair:"#2a201a"};
 function drawFigure(P,al,me,faded){
   const k=S2/DX, X=v=>(YME-(al+v[0])/DX)*S2, Y=v=>groundY()-v[1]*k;   // k = Bildpunkte je Meter
   drawRunnerFig(cS,P,X,Y,k,me?COL_ME:COL_PACE,faded);
@@ -961,7 +988,7 @@ function drawSide(n){
   if(!showAir){cS.fillStyle="#0c1726";cS.fillRect(0,0,cvS.width,NX2*S2);}
   // Straße mit Strichen, die mit dem Lauftempo nach hinten wandern
   const gy=groundY(); cS.fillStyle="#2a3340"; cS.fillRect(0,gy,cvS.width,cvS.height-gy);
-  cS.fillStyle="#d98a3a"; roadOff=(roadOff+PAR2.Ug*n)%(4/DX);
+  cS.fillStyle="#d98a3a"; roadOff=(sp.v*sideT/DX)%(4/DX);          // Striche laufen mit derselben Uhr wie die Füße: der Standfuß bleibt auf seinem Strich
   for(let y=-4/DX+roadOff;y<NY2;y+=4/DX) cS.fillRect(y*S2,gy+4,1/DX*S2,5);
   // Raster: senkrecht jeden Meter ab dir, waagerecht jede halbe Höhe
   if(grid){const k=S2/DX; cS.lineWidth=1.2;
