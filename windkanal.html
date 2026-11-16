@@ -50,7 +50,8 @@ canvas{width:100%;height:auto;display:block}
 .result{font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .status{font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
 .status.warn{color:var(--warn);font-weight:700}
-.tabs{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px}
+.tabs{display:grid;grid-template-columns:auto auto 1fr auto auto;gap:4px}
+.tabs button{padding:8px 6px;font-size:.78rem;min-width:0;overflow:hidden;text-overflow:ellipsis}
 button{font:600 .84rem var(--body);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;white-space:nowrap}
 button[aria-pressed="true"],button[aria-selected="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
 button:disabled{opacity:.4;cursor:default}
@@ -113,6 +114,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>So schnell strömt die Luft direkt vor deiner Brust auf dich zu. Allein ist das dein Lauftempo plus Gegenwind. Im Windschatten bleibt davon nur ein Rest.</dd>
       <dt>Sekunden pro Kilometer</dt>
       <dd>So viel schneller könntest du bei gleicher Anstrengung laufen. Gerechnet nach da Silva et al. für einen 52 kg schweren Läufer. Für Marathonzeiten über 2 Stunden stützt sich die Umrechnung auf Werte, die ich nicht am Volltext prüfen konnte.</dd>
+      <dt>Wirbel</dt>
+      <dd>Der Schalter zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
       <dd>Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
     </dl>
@@ -134,7 +137,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
     <ul>
       <li><strong>Zwei Dimensionen.</strong> Gerechnet wird eine waagerechte Scheibe auf Brusthöhe. Jeder Läufer ist eine Ellipse von 45 × 25 cm, ohne Arme, Beine und Bewegung.</li>
       <li><strong>Ersatz für die dritte Dimension.</strong> In echt weicht Luft über die Köpfe aus und füllt den Windschatten von oben wieder auf. Das Modell bildet beides mit je einer Stellschraube nach.</li>
-      <li><strong>Mittelwert statt Wirbel.</strong> Hinter einem echten Läufer lösen sich ständig Wirbel ab. Das Modell zeigt nur den zeitlichen Mittelwert davon: eine ruhige, lange Zone langsamer Luft. Die einzelnen Wirbel fehlen.</li>
+      <li><strong>Messmodus und Wirbelmodus.</strong> Im Messmodus zeigt das Modell den zeitlichen Mittelwert: eine ruhige, lange Zone langsamer Luft. Der Schalter „Wirbel“ rechnet die Strömung ohne die beiden Stellschrauben. Dann lösen sich echte Wirbel ab, aber die Prozentwerte stimmen nicht mehr, hinter einem Pacer käme fast 90 % heraus. Deshalb zeigt der Wirbelmodus nur das Bild und die Zahl aus dem Messmodus.</li>
       <li><strong>Prozentwert unabhängig vom Tempo.</strong> Tempo und Wind ändern im Modell die Kraft in Newton, nicht den Anteil.</li>
       <li><strong>Geeicht, nicht unabhängig.</strong> Weil das Modell an der Studie von Schickhofer und Hanson ausgerichtet ist, kann es deren Zahlen nicht bestätigen.</li>
     </ul>
@@ -150,7 +153,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
   <div class="tabs" role="tablist">
     <button type="button" role="tab" data-t="form" aria-selected="true">Aufstellung</button>
     <button type="button" role="tab" data-t="pacer" aria-selected="false">Pacer</button>
-    <button type="button" role="tab" data-t="wind" aria-selected="false">Tempo & Wind</button>
+    <button type="button" role="tab" data-t="wind" aria-selected="false">Tempo + Wind</button>
+    <button type="button" id="vor" aria-pressed="false">Wirbel</button>
     <button type="button" id="pause" aria-pressed="false" aria-label="Pause">❚❚</button>
   </div>
   <div class="pane" id="pane-form">
@@ -263,6 +267,9 @@ function createSim(NX,NY,P){
 // ---- Aufbau ---------------------------------------------------------------
 const DX=0.03, NX=128, NY=240, A=0.225/DX, B=0.125/DX, MX=NX/2, MY=90;
 const PAR={U:0.1,nu:0.008,cs:0.16,lam:0.0004,mu:0.2};
+const CAL={nu:0.008,lam:0.0004,mu:0.2};   // Messmodus: geeicht, Strömung beruhigt sich
+const VOR={nu:0.004,lam:0,mu:0};          // Wirbelmodus: reine 2D-Strömung ohne Korrekturen, Wirbel lösen sich ab
+let vortex=false, kept=null;               // kept = letzter Messwert für die aktuelle Aufstellung
 const F0=0.09034818107883136;                       // Widerstand allein, im selben Modell vorab berechnet
 const SETTLE=3000;                     // Schritte, bis sich die Strömung beruhigt hat
 const sim=createSim(NX,NY,PAR);
@@ -294,7 +301,9 @@ function ratio(T){T=Math.min(300,Math.max(120,T));for(let i=0;i<3;i++){const [a,
 const $=id=>document.getElementById(id);
 const de=(x,n)=>x.toFixed(n).replace(".",",");
 const mmss=s=>{s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
-function apply(){sim.setBodies([me].concat(pacers)); since=0;}
+// Im Wirbelmodus stehen alle Körper 1 cm versetzt: die kleine Unsymmetrie stößt die Wirbelablösung an.
+function place(){sim.setBodies([me].concat(pacers).map(q=>vortex?{x:q.x+0.37,y:q.y,a:q.a,b:q.b}:q)); since=0;}
+function apply(){kept=null; place();}
 function loadPreset(k){const P=PRESETS.find(p=>p.k===k); preset=k; pacers=P.p.map(q=>mk(q[0],q[1])); sel=-1; apply(); ui();}
 function free(q,skip){ // true, wenn q keinen anderen Körper berührt und im Feld liegt
   if(q.x<A+1||q.x>NX-A-2||q.y<B+14||q.y>NY-B-16) return false;
@@ -340,6 +349,11 @@ $("nU").onclick=()=>nudge(0,-1); $("nD").onclick=()=>nudge(0,1); $("nL").onclick
 $("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.length?"":"solo";apply();ui();};
 $("clr").onclick=()=>loadPreset("solo");
 $("pause").onclick=()=>{paused=!paused;$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"▶":"❚❚";$("pause").setAttribute("aria-label",paused?"Weiter":"Pause");};
+$("vor").onclick=()=>{
+  if(!vortex&&since>=SETTLE) kept=1-ema[1]/F0;
+  vortex=!vortex; Object.assign(PAR,vortex?VOR:CAL); $("vor").setAttribute("aria-pressed",String(vortex));
+  if(!vortex) sim.reset();   // sauber neu einschwingen, sonst misst der Messmodus in die Restwirbel hinein
+  place(); readout();};
 function showTab(t){document.querySelectorAll(".tabs [role=tab]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.t===t)));
   ["form","pacer","wind"].forEach(k=>$("pane-"+k).hidden=k!==t);}
 document.querySelector(".tabs").addEventListener("click",ev=>{const b=ev.target.closest("[role=tab]");if(b)showTab(b.dataset.t);});
@@ -374,17 +388,18 @@ function draw(k){
     if(y>=NY-1||y<0||body[(y|0)*NX+(x|0)]||Math.random()<0.0015*k/8){x=Math.random()*NX;y=Math.random()*1.5;}
     px[i]=x; py[i]=y;
   }
-  ctx.lineCap="round"; ctx.lineWidth=3;
+  ctx.globalCompositeOperation="lighter"; ctx.lineCap="round"; ctx.lineWidth=3;
   [["rgba(111,168,220,.6)",0],["rgba(230,238,246,.55)",1],["rgba(255,176,96,.85)",2]].forEach(([col,j])=>{
     ctx.strokeStyle=col; ctx.beginPath(); const a=seg[j];
     for(let i=0;i<a.length;i+=4){ctx.moveTo(a[i],a[i+1]);ctx.lineTo(a[i+2],a[i+3]+0.01);} ctx.stroke();});
+  ctx.globalCompositeOperation="source-over";
   // Läufer
   [me].concat(pacers).forEach((q,i)=>{
     const X=q.x*S, Y=q.y*S;
     ctx.fillStyle=i===0?"#dba84a":"#aab8c8"; ctx.beginPath(); ctx.ellipse(X,Y,q.a*S,q.b*S,0,0,7); ctx.fill();
     ctx.fillStyle=i===0?"#8a6410":"#6c7c8e"; ctx.beginPath(); ctx.arc(X,Y,3.3*S,0,7); ctx.fill();
     if(i>0&&i-1===sel){ctx.strokeStyle="#fff";ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(X,Y,q.a*S+7,q.b*S+7,0,0,7);ctx.stroke();}
-    if(i>0&&since>600){const p=100*(ema[i+1]/F0-1);
+    if(i>0&&since>600&&!vortex){const p=100*(ema[i+1]/F0-1);
       ctx.font="700 21px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#e8edf3";
       ctx.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",X,Y-q.b*S-12);}
   });
@@ -397,6 +412,14 @@ function readout(){
   let s=0,n=0; for(let y=Math.round(MY-B-7);y<=Math.round(MY-B-3);y++) for(let x=Math.round(MX-A);x<=Math.round(MX+A);x++){const c=y*NX+x;if(!sim.body[c]){s+=sim.uy[c];n++;}}
   const infl=n?Math.max(0,s/n/PAR.U):1;
   const st=$("status"); st.className="status";
+  if(vortex){
+    const k=kept!==null, Fs=KD*Math.pow(Math.max(0,rel)/3.6,2);
+    $("drag").textContent=k?(kept>=0?de(100*kept,0)+" % weniger":de(-100*kept,0)+" % mehr"):"–";
+    $("dragSub").textContent=k?"Widerstand · Wert aus dem Messmodus":"Widerstand · nicht gemessen";
+    $("inflow").textContent="Wirbelbild"; $("inflowSub").textContent="reine 2D-Strömung";
+    $("result").textContent="Wirbelmodus: Hier zählt nur das Bild.";
+    st.textContent=k?"Die Prozentzahl stammt aus dem Messmodus.":"Zum Messen den Schalter Wirbel ausschalten."; return;
+  }
   if(rel<3){
     $("drag").textContent="–"; $("dragSub").textContent="Widerstand"; $("inflow").textContent="–"; $("inflowSub").textContent="Luft vor dir";
     $("result").textContent="Kaum Fahrtwind: Der Rückenwind ist so schnell wie du.";
@@ -420,11 +443,12 @@ let frame=0;
 function loop(){
   let steps=0;
   if(!paused&&!document.hidden){
-    if(since<SETTLE+800){
+    if(vortex||since<SETTLE+800){
       const t0=performance.now();
       do{sim.step(); steps++; since++;
         const al=since<300?1/since:1/300; for(let i=1;i<=pacers.length+1;i++) ema[i]+=al*(sim.fy[i]-ema[i]);
       }while(steps<14&&performance.now()-t0<11);
+      if(sim.fy[1]!==sim.fy[1]){sim.reset(); place();}   // Rechnung entgleist: neu starten
     } else steps=8;   // Strömung steht: nur noch die Teilchen bewegen
     const rel=3600/(+$("pace").value)+(+$("wind").value);
     draw(steps*Math.min(2.2,Math.max(0.3,rel/15)));
