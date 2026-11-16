@@ -122,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 26</div>
+    <div class="kicker">Testversion 27</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -163,7 +163,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Fahrtwind und mitgerissene Luft</dt>
       <dd>Beides ist dieselbe Strömung, nur anders betrachtet. Unter „Bild“ wechselst du die Sicht. Bei „Fahrtwind“ stehst du still und die Luft strömt an dir vorbei. Bei „Mitgerissene Luft“ steht die Luft, und du siehst, was die Läufer mit ihr machen: Vorn schieben sie sie weg, hinter sich reißen sie sie mit. Die dunkle, ruhige Zone der einen Sicht ist der Sog der anderen.</dd>
       <dt>Seitenansicht</dt>
-      <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren, je nach Gerät in Echtzeit oder leichter Zeitlupe. Unten rechts stehen die Zeitlupe und die Bilder pro Sekunde. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Nur Pacer, die höchstens 30 cm seitlich versetzt laufen, liegen in der Schnittebene. Die übrigen sind blass gezeichnet und beeinflussen die Luft in diesem Bild nicht.</dd>
+      <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren, je nach Gerät in Echtzeit oder leichter Zeitlupe. Unten rechts stehen die Zeitlupe und die Bilder pro Sekunde. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Pacer, die höchstens 20 cm seitlich versetzt laufen, stehen voll in der Schnittebene. Weiter seitlich versetzte bremsen die Luft in diesem Bild nur teilweise: bei 30 cm zu zwei Dritteln, bei 60 cm zu einem Drittel, ab 90 cm gar nicht mehr. Sie sind entsprechend blasser gezeichnet. Diese Abstufung ist eine eigene Annahme.</dd>
       <dt>Laufstil der Figuren</dt>
       <dd>Der schnelle Laufstil ist aus einer Zeitlupenaufnahme von Eliud Kipchoge bei 2:52 min/km ausgemessen: Oberschenkel von 29° hinter bis 55° vor der Senkrechten, Knie bis 144° gebeugt, Ferse fast am Gesäß, Bodenkontakt 26 % des Doppelschritts. Der Oberarm pendelt hinter der Senkrechten. Für langsames Laufen gibt es keine solche Messung, dort gelten eigene Annahmen nach den Spitzenwerten von Fukuchi et al. Dazwischen wird nach Tempo gemischt.</dd>
       <dt>Schrittfrequenz</dt>
@@ -279,6 +279,7 @@ function createSim(NX,NY,P){
   let f=new Float32Array(9*N), g=new Float32Array(9*N);
   const body=new Uint8Array(N), ux=new Float32Array(N), uy=new Float32Array(N);
   const fx=new Float64Array(16), fy=new Float64Array(16);
+  const por=P.porous?new Float32Array(N):null;      // Bremsfeld für Körper, die nur teilweise in der Rechenebene liegen
   const feq=(i,r,u,v)=>{const cu=3*(CX[i]*u+CY[i]*v);return WT[i]*r*(1+cu+0.5*cu*cu-1.5*(u*u+v*v));};
   function reset(){for(let k=0;k<N;k++){for(let i=0;i<9;i++)f[i*N+k]=feq(i,1,0,P.U);ux[k]=0;uy[k]=P.U;}}
   // list: [{x,y,a,b}] Mittelpunkt und Halbachsen in Zellen; Index+1 = Körpernummer
@@ -319,7 +320,7 @@ function createSim(NX,NY,P){
       const pxx=n1+n3+n5+n6+n7+n8, pyy=n2+n4+n5+n6+n7+n8, pxy=n5-n6+n7-n8;
       const tau=0.5*(tau0+Math.sqrt(t02+sm*Math.sqrt(pxx*pxx+pyy*pyy+2*pxy*pxy)/r)), om=1/tau;
       // Ersatz für die dritte Dimension: Luft von oben füllt langsame Zonen wieder auf
-      const u2=u-tau*lam*u, v2=v+tau*lam*(U-v);
+      const pd=por?por[k]:0, u2=u-tau*(lam+pd)*u, v2=v+tau*lam*(U-v)-tau*pd*v;   // pd: durchlässiger Körper bremst die Luft
       const vs=1-1.5*(u2*u2+v2*v2), a2=3*u2, b2=3*v2, c2=a2+b2, d2=b2-a2;
       // Druckausgleich nach oben: Überdruck entweicht, Unterdruck wird aufgefüllt
       const rr=r+tau*mu*(1-r), r9=rr/9, r36=rr/36;
@@ -361,7 +362,7 @@ function createSim(NX,NY,P){
   reset();
   // Startzustand aus einem Geschwindigkeitsfeld (Gleichgewicht), z. B. aus der groben Vorrechnung
   function init(U2,V2){for(let k=0;k<N;k++){if(body[k])continue; for(let i=0;i<9;i++)f[i*N+k]=feq(i,1,U2[k],V2[k]);}}
-  return {NX,NY,P,body,ux,uy,fx,fy,step,reset,setBodies,setMap,init};
+  return {NX,NY,P,body,ux,uy,fx,fy,por,step,reset,setBodies,setMap,init};
 }
 //</core>
 
@@ -609,7 +610,7 @@ function setView(r){road=r; $("vTunnel").setAttribute("aria-pressed",String(!r))
   const L=r?[["#6eebd7","läuft mit dir mit"],["#aab8c8","ruhende Luft"],["#ffb060","strömt nach hinten"]]
            :[["#6fa8dc","langsame Luft"],["#e6eef6","ungestörter Fahrtwind"],["#ffb060","schneller als der Fahrtwind"]];
   L.forEach((q,i)=>{$("lg"+i+"c").style.background=q[0];$("lg"+i).textContent=q[1];});
-  if(sideView){$("viewHint").textContent="Längsschnitt durch dich. Nur Pacer, die höchstens 30 cm seitlich versetzt laufen, liegen in dieser Ebene und lenken hier die Luft, die anderen sind blass. Die Strömung ist eigens mit bewegten Armen und Beinen gerechnet, die Zahlen stammen aus der Draufsicht.";}
+  if(sideView){$("viewHint").textContent="Längsschnitt durch dich. Pacer bis 20 cm seitlich stehen voll in dieser Ebene. Weiter seitlich versetzte bremsen die Luft hier nur teilweise und sind umso blasser, je weiter sie weg sind. Die Zahlen stammen aus der Draufsicht.";}
   else $("viewHint").textContent=r?"Die Luft steht, ihr lauft hindurch. Jeder Strich zeigt, wohin ihr die Luft schiebt oder mitreißt. Das ist der Sog wie hinter einem Lkw."
                              :"Du stehst, die Luft strömt an dir vorbei, wie im Windkanal. Dunkle Zonen sind Luft, die fast so schnell ist wie du.";
   for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;} readout();}
@@ -782,8 +783,12 @@ function drawGrid(){
 // Die Zahlen stammen aus der Draufsicht.
 // Zellgröße 4,5 cm statt 3 cm: gut dreimal schneller, damit die Figuren fast in Echtzeit laufen. Für das Bild reicht das.
 const DXS=0.045, NX2=74, NY2=150, YME=82, S2=7.5;   // 3,3 m hoch, 6,75 m lang, du 3,7 m hinter dem Einlass
-const PAR2={U:0.1,nu:0.003,cs:0.16,lam:0,mu:0.075,walls:true,Ug:0.1};
-const SLICE=0.3;                                // Pacer bis 30 cm seitlich stehen in der Schnittebene
+const PAR2={U:0.1,nu:0.003,cs:0.16,lam:0,mu:0.075,walls:true,Ug:0.1,porous:true};
+const SLICE=0.2;                                // Pacer bis 20 cm seitlich stehen voll in der Schnittebene
+// Weiter seitlich versetzte Läufer bremsen die Luft in der Ebene nur teilweise: Gewicht 1 − Versatz/0,9 m, ab 0,9 m nichts mehr.
+// Das ist eine eigene Annahme. Sie steht dafür, dass ein Windschatten breiter ist als der Körper.
+const sideW=lat=>Math.max(0,1-Math.abs(lat)/0.9), PDMAX=0.06;
+let pmap=null;
 let sim2=null, map2=null, sideT=0, slow=2;
 // Laufbewegung: Der Fuß steht in der Stützphase fest auf dem Boden (Abrollen über Ferse, Sohle, Ballen), das Bein folgt
 // daraus per Zwei-Gelenk-Rechnung. In der Schwungphase läuft das Sprunggelenk durch Stützpunkte, die zwischen Dauerlauf
@@ -967,9 +972,12 @@ let rateSm=0, lastSide=0, fpsSm=60;
 function sideStep(){
   const sp=sideParams(); if(sp.rel<0.8) return 0;
   PAR2.Ug=PAR2.U*sp.v/sp.rel;                                              // die Straße läuft mit dem Lauftempo unter euch durch
-  const L=sideRunners().filter(r=>Math.abs(r.lat)<SLICE); let n=0; const t0=performance.now();
+  const all=sideRunners(), L=all.filter(r=>Math.abs(r.lat)<SLICE), O=all.filter(r=>Math.abs(r.lat)>=SLICE&&sideW(r.lat)>0).sort((a,b)=>sideW(a.lat)-sideW(b.lat));
+  let n=0; const t0=performance.now();
   const dtR=lastSide?Math.min(0.1,Math.max(0.004,(t0-lastSide)/1000)):1/60; lastSide=t0;   // echte Zeit seit dem letzten Bild
   map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); sim2.setMap(map2);
+  pmap.fill(0); O.forEach((r,j)=>rasterRunner(pmap,pose(sideT/sp.Tc+r.ph0,sp.v),j+1,r.along));          // schwächste zuerst, die stärkste gewinnt
+  for(let k=0;k<pmap.length;k++) sim2.por[k]=pmap[k]?PDMAX*sideW(O[pmap[k]-1].lat):0;
   const nMax=Math.max(1,Math.min(24,Math.round(dtR/sp.dtp)));             // nie schneller als Echtzeit
   do{sim2.step(); n++;}while(n<nMax&&performance.now()-t0<8);
   fpsSm+=0.05*(1/dtR-fpsSm);
@@ -984,7 +992,7 @@ function enterSide(on){
   sideView=on; $("vTop").setAttribute("aria-pressed",String(!on)); $("vSide").setAttribute("aria-pressed",String(on));
   cv.hidden=on; cvS.hidden=!on; const st=document.querySelector(".stage");
   st.classList.toggle("side",on);
-  if(on){ if(!sim2){sim2=createSim(NX2,NY2,PAR2); map2=new Uint8Array(NX2*NY2);}
+  if(on){ if(!sim2){sim2=createSim(NX2,NY2,PAR2); map2=new Uint8Array(NX2*NY2); pmap=new Uint8Array(NX2*NY2);}
     for(let i=0;i<NP2;i++){qx[i]=1+Math.random()*(NX2-2); qy[i]=Math.random()*NY2;}
     st.style.maxWidth=""; st.classList.remove("tiny"); }
   else setZoom(zoom);
@@ -994,14 +1002,18 @@ function enterSide(on){
 const cY=x=>(NX2-1-x+0.5)*S2, groundY=()=>cY(1);
 const COL_ME={skin:"#c8936a",shirt:"#dba84a",shorts:"#2f4a7a",shoe:"#f2c14e",sole:"#f2f4f6",hair:"#3a2a20"};
 const COL_PACE={skin:"#c8936a",shirt:"#8fa0b8",shorts:"#3b4658",shoe:"#ff6f9c",sole:"#f2f4f6",hair:"#2a201a"};
-const layer=document.createElement("canvas"); layer.width=cvS.width; layer.height=cvS.height; const cL=layer.getContext("2d");
+const DIM={};      // Pacer-Farben, zum dunklen Hintergrund hin gemischt
+function dimCol(a){const q=Math.round(a*12); if(DIM[q]) return DIM[q]; const bg=[14,26,42], o={};
+  for(const k in COL_PACE){const n=parseInt(COL_PACE[k].slice(1),16), c=[n>>16,n>>8&255,n&255].map((v,i)=>Math.round(bg[i]+(v-bg[i])*q/12));
+    o[k]="#"+c.map(v=>v.toString(16).padStart(2,"0")).join("");}
+  return DIM[q]=o;}
 function drawFigure(P,al,me,faded,cS){
   const k=S2/DXS, X=v=>(YME-(al+v[0])/DXS)*S2, Y=v=>groundY()-v[1]*k;   // k = Bildpunkte je Meter
   // Schatten auf der Straße: wird in der Flugphase kleiner und blasser
   const lowest=Math.min(P.A.heel[1],P.A.toe[1],P.B.heel[1],P.B.toe[1]), air=Math.max(0,Math.min(1,lowest/0.12));
-  cS.fillStyle="rgba(0,0,0,"+(0.38*(1-0.55*air))+")"; cS.beginPath();
+  cS.fillStyle="rgba(0,0,0,"+((faded?0.15:0.38)*(1-0.55*air))+")"; cS.beginPath();
   cS.ellipse(X([0.02,0]),groundY()+7,(0.34-0.1*air)*k,5,0,0,7); cS.fill();
-  drawRunnerFig(cS,P,X,Y,k,me?COL_ME:COL_PACE,false);
+  drawRunnerFig(cS,P,X,Y,k,faded||(me?COL_ME:COL_PACE),false);
 }
 function drawSide(n){
   const {ux,uy}=sim2, d=img2.data, U=PAR2.U, sp=sideParams();
@@ -1049,9 +1061,8 @@ function drawSide(n){
   }
   // Läufer: erst die außerhalb der Schnittebene (blass, als ganze Ebene), dann die in der Ebene, du zuletzt
   const L=sideRunners(), out=L.filter(r=>Math.abs(r.lat)>=SLICE), inn=L.filter(r=>Math.abs(r.lat)<SLICE).sort((a,b)=>(a.me?1:0)-(b.me?1:0));
-  if(out.length){cL.clearRect(0,0,layer.width,layer.height);
-    out.forEach(r=>drawFigure(pose(sideT/sp.Tc+r.ph0,sp.v),r.along,false,true,cL));
-    cS.globalAlpha=0.3; cS.drawImage(layer,0,0); cS.globalAlpha=1;}
+  // je weiter seitlich, desto stärker zum Hintergrund hin abgedunkelt (deckend gezeichnet: schneller als eine durchscheinende Ebene)
+  out.sort((a,b)=>sideW(a.lat)-sideW(b.lat)).forEach(r=>drawFigure(pose(sideT/sp.Tc+r.ph0,sp.v),r.along,false,dimCol(0.22+0.5*sideW(r.lat)),cS));
   inn.forEach(r=>{const P=pose(sideT/sp.Tc+r.ph0,sp.v); drawFigure(P,r.along,r.me,false,cS);
     if(!r.me&&M.shown&&!vortex){const p=100*(M.rel[r.i+1]-1); cS.font="700 20px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle="#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
