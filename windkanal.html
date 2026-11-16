@@ -73,6 +73,16 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .chips button{flex:none}
 .row{display:flex;gap:6px;align-items:center}
 .row .sq{width:42px;height:38px;padding:0;font-size:1rem;flex:none}
+.prow{display:flex;gap:12px;align-items:flex-start}
+.dpad{flex:none;display:grid;grid-template-columns:44px 44px 44px;grid-template-rows:38px 38px;gap:5px;
+  grid-template-areas:". u ." "l d r"}
+.dpad button{padding:0;font-size:1rem}
+.pinfo{flex:1;min-width:0}
+.pwarn{font-size:.8rem;color:var(--muted);margin-top:2px;min-height:2.4em;line-height:1.2}
+.pwarn.on{color:var(--warn);font-weight:800;font-size:.86rem}
+.nope{animation:nope .35s}
+@keyframes nope{20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+@media (prefers-reduced-motion:reduce){.nope{animation:none;outline:2px solid var(--warn)}}
 .wheels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .wcell{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:5px 4px 4px;min-width:0}
 .wlabel{font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:3px;border-bottom:1px solid var(--line)}
@@ -102,7 +112,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 13</div>
+    <div class="kicker">Testversion 14</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -185,16 +195,22 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
     <div class="small">Wische die Reihe nach links für weitere Aufstellungen.</div>
   </div>
   <div class="pane" id="pane-pacer" hidden>
-    <div class="row">
-      <button type="button" class="sq" id="nL" aria-label="10 cm nach links">◀</button>
-      <button type="button" class="sq" id="nU" aria-label="10 cm nach vorn">▲</button>
-      <button type="button" class="sq" id="nD" aria-label="10 cm nach hinten">▼</button>
-      <button type="button" class="sq" id="nR" aria-label="10 cm nach rechts">▶</button>
-      <button type="button" id="del">Entfernen</button>
-      <button type="button" id="clr">Alle weg</button>
+    <div class="prow">
+      <div class="dpad" aria-label="Gewählten Pacer um 10 cm verschieben">
+        <button type="button" id="nU" style="grid-area:u" aria-label="10 cm nach vorn">▲</button>
+        <button type="button" id="nL" style="grid-area:l" aria-label="10 cm nach links">◀</button>
+        <button type="button" id="nD" style="grid-area:d" aria-label="10 cm nach hinten">▼</button>
+        <button type="button" id="nR" style="grid-area:r" aria-label="10 cm nach rechts">▶</button>
+      </div>
+      <div class="pinfo">
+        <div id="selInfo" style="font-weight:700;font-size:.86rem">Kein Pacer gewählt</div>
+        <div id="pwarn" class="pwarn" role="status" aria-live="polite">Pfeile verschieben um 10 cm.</div>
+        <div class="row" style="margin-top:6px">
+          <button type="button" id="del">Entfernen</button>
+          <button type="button" id="clr">Alle weg</button>
+        </div>
+      </div>
     </div>
-    <div style="font-weight:700;font-size:.86rem;margin-top:8px" id="selInfo">Kein Pacer gewählt</div>
-    <div class="small">Pfeile verschieben um 10 cm. Direkt hintereinander mindestens 1 m, mit seitlichem Versatz dichter.</div>
   </div>
   <div class="pane" id="pane-wind" hidden>
     <div class="wheels">
@@ -379,8 +395,15 @@ function check(q,skip){
 }
 const free=(q,skip)=>!check(q,skip);
 let note="", noteN=0;
-function block(q,skip){const r=pacers.length>=MAXP&&skip<0?"Höchstens "+MAXP+" Pacer.":check(q,skip);
-  if(r){note=r;noteN=30;} else noteN=0;   // erfolgreicher Zug löscht die alte Warnung
+let warnT=0;
+const HINT="Pfeile verschieben um 10 cm.";
+function warn(t){const w=$("pwarn"); clearTimeout(warnT);
+  if(t){w.textContent=t; w.classList.add("on"); warnT=setTimeout(()=>warn(null),3500);}
+  else {w.textContent=HINT; w.classList.remove("on");}}
+function block(q,skip,btn){const r=pacers.length>=MAXP&&skip<0?"Höchstens "+MAXP+" Pacer.":check(q,skip);
+  if(r){note=r;noteN=30;warn(r);
+    if(btn){btn.classList.remove("nope"); void btn.offsetWidth; btn.classList.add("nope");}}
+  else {noteN=0; warn(null);}   // erfolgreicher Zug löscht die alte Warnung
   readout(); return !r;}
 function ui(){
   document.querySelectorAll("#presets button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===preset)));
@@ -420,9 +443,9 @@ cv.addEventListener("click",ev=>{if(moved){moved=false;return;}const [x,y]=cell(
   const n={x:snap(x,MX),y:snap(y,MY),a:A,b:B};
   if(block(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();showTab("pacer");ui();}});
 const snap=(v,o)=>o+Math.round((v-o)*DX*10)/10/DX;      // auf volle 10 cm Abstand zu dir
-function nudge(dx,dy){const q=pacers[sel];if(!q)return;const n={x:dx?snap(q.x+dx*0.1/DX,MX):q.x,y:dy?snap(q.y+dy*0.1/DX,MY):q.y,a:A,b:B};
-  if(block(n,sel)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
-$("nU").onclick=()=>nudge(0,-1); $("nD").onclick=()=>nudge(0,1); $("nL").onclick=()=>nudge(-1,0); $("nR").onclick=()=>nudge(1,0);
+function nudge(dx,dy,btn){const q=pacers[sel];if(!q)return;const n={x:dx?snap(q.x+dx*0.1/DX,MX):q.x,y:dy?snap(q.y+dy*0.1/DX,MY):q.y,a:A,b:B};
+  if(block(n,sel,btn)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
+$("nU").onclick=()=>nudge(0,-1,$("nU")); $("nD").onclick=()=>nudge(0,1,$("nD")); $("nL").onclick=()=>nudge(-1,0,$("nL")); $("nR").onclick=()=>nudge(1,0,$("nR"));
 $("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.length?"":"solo";apply();ui();};
 $("clr").onclick=()=>loadPreset("solo");
 $("pause").onclick=()=>{paused=!paused;$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"▶":"❚❚";$("pause").setAttribute("aria-label",paused?"Weiter":"Pause");};
