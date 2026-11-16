@@ -102,7 +102,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 11</div>
+    <div class="kicker">Testversion 12</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -111,7 +111,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
     <div id="busy"></div>
     <div class="hud">
       <div><b id="drag">–</b><span id="dragSub">Widerstand</span></div>
-      <div><b id="inflow">–</b><span id="inflowSub">Luft vor dir</span></div>
+      <div><b id="inflow">–</b><span id="inflowSub">gefühlter Wind</span></div>
     </div>
   </div>
 
@@ -131,8 +131,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>Die Luft bremst dich nur noch mit einem Fünftel der Kraft, die sie im Alleinlauf bei gleichem Tempo hätte. Darunter steht die Kraft in Newton. Das sind nicht 80 % weniger Anstrengung: Der Luftwiderstand macht nur wenige Prozent deines Energiebedarfs aus.</dd>
       <dt>Berechnung läuft</dt>
       <dd>Nach jeder Änderung an der Aufstellung braucht die Strömung einige Sekunden, bis sie sich eingependelt hat. So lange steht „Berechnung läuft“ da, der goldene Balken am oberen Bildrand füllt sich, die Zahlen erscheinen erst im letzten Drittel und sind bis zum Ende vorläufig. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
-      <dt>Luft vor dir</dt>
-      <dd>So schnell strömt die Luft direkt vor deiner Brust auf dich zu. Allein ist das dein Lauftempo plus Gegenwind. Im Windschatten bleibt davon nur ein Rest.</dd>
+      <dt>Gefühlter Wind</dt>
+      <dd>So stark müsste der Fahrtwind im Alleinlauf sein, damit dich dieselbe Kraft bremst wie jetzt. Die Kraft wächst mit dem Quadrat des Winds, deshalb gilt: gefühlter Wind = Fahrtwind × Wurzel aus dem Rest-Widerstand. Beispiel: 70 % weniger Widerstand lässt 30 % übrig, die Wurzel daraus ist 0,55, bei 15 km/h sind das 8,2 km/h. Läufst du allein, steht dort dein voller Fahrtwind.</dd>
       <dt>Sekunden pro Kilometer</dt>
       <dd>So viel schneller könntest du bei gleicher Anstrengung laufen. Gerechnet nach da Silva et al. für einen 52 kg schweren Läufer. Für Marathonzeiten über 2 Stunden stützt sich die Umrechnung auf Werte, die ich nicht am Volltext prüfen konnte.</dd>
       <dt>Fahrtwind und mitgerissene Luft</dt>
@@ -579,8 +579,6 @@ function drawGrid(){
 function readout(){
   const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace, rel=v+wind;   // rel = Fahrtwind allein, km/h
   const p=1-ema[1]/F0, settling=since<SETTLE, P=PRESETS.find(q=>q.k===preset);
-  let s=0,n=0; for(let y=Math.round(MY-B-7);y<=Math.round(MY-B-3);y++) for(let x=Math.round(MX-A);x<=Math.round(MX+A);x++){const c=y*NX+x;if(!sim.body[c]){s+=sim.uy[c];n++;}}
-  const infl=n?Math.max(0,s/n/PAR.U):1;
   const st=$("status"); st.className="status";
   if(fieldMsg>0){fieldMsg--; st.textContent=lost?(lost===1?"1 Pacer lag außerhalb des kleinen Felds und ist entfernt.":lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt."):"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
     if(lost) st.className="status warn"; var keepMsg=true;}
@@ -595,7 +593,7 @@ function readout(){
   }
   if(rel<3){
     $("busy").style.width="0";
-    $("drag").textContent="–"; $("dragSub").textContent="Widerstand"; $("inflow").textContent="–"; $("inflowSub").textContent="Luft vor dir";
+    $("drag").textContent="–"; $("dragSub").textContent="Widerstand"; $("inflow").textContent="–"; $("inflowSub").textContent="gefühlter Wind";
     $("result").textContent="Kaum Fahrtwind: Der Rückenwind ist so schnell wie du.";
     st.textContent="Hier gilt das Modell nicht. Nimm weniger Rückenwind."; st.className="status warn"; return;
   }
@@ -603,8 +601,9 @@ function readout(){
   $("drag").textContent=since<0.6*SETTLE?"…":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr");
   $("dragSub").textContent=settling?"Berechnung läuft · "+Math.round(100*since/SETTLE)+" %":"Widerstand · "+de(Fn,1)+" statt "+de(Fs,1)+" N";
   $("busy").style.width=settling?Math.round(100*since/SETTLE)+"%":"0";
-  $("inflow").textContent=de((road?1-infl:infl)*rel,1)+" km/h";
-  $("inflowSub").textContent=road?"so schnell läuft die Luft vor dir mit":"Luft vor dir · allein "+de(rel,1);
+  // Gefühlter Wind: bei diesem Fahrtwind hättest du allein denselben Widerstand (Kraft wächst mit dem Quadrat des Winds)
+  $("inflow").textContent=since<0.6*SETTLE?"…":de(rel*Math.sqrt(Math.max(0,1-p)),1)+" km/h";
+  $("inflowSub").textContent="gefühlter Wind · allein "+de(rel,1);
   // Zeitgewinn bei gleicher Anstrengung
   const inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*p*inc/100, en=100*p*inc/(100+inc);
   $("result").textContent=since<0.6*SETTLE?"Berechnung läuft …"
