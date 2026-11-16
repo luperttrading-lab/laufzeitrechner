@@ -48,10 +48,12 @@ canvas{width:100%;height:auto;display:block}
 canvas[hidden]{display:none}
 .stage.side{display:flex;flex-direction:column}
 .stage.side .hud{order:-1;position:static;padding:6px 6px 4px;background:#0a1320}
-.hud{position:absolute;left:6px;top:6px;right:6px;display:flex;justify-content:space-between;gap:6px;pointer-events:none;line-height:1.2}
-.hud div{background:rgba(10,19,32,.82);border-radius:9px;padding:4px 9px 5px;color:#e8edf3;white-space:nowrap}
+.hud{position:absolute;left:6px;top:6px;right:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;pointer-events:none;line-height:1.2}
+.hud div{background:rgba(10,19,32,.82);border-radius:9px;padding:4px 9px 5px;color:#e8edf3;white-space:nowrap;min-width:0;overflow:hidden}
+.hud b,.hud span{overflow:hidden;text-overflow:ellipsis}
 .hud b{display:block;font:700 1.12rem var(--display)}
-.hud span{font-size:.66rem;color:#aab8c8}
+.hud span{display:block;font-size:.66rem;color:#aab8c8}
+.stage.tiny .hud{grid-template-columns:1fr}
 .stage.tiny .hud span,.stage.tiny .hud div:last-child{display:none}
 .stage.tiny .hud b{font-size:.92rem}
 .stage.tiny .hud div{padding:3px 7px}
@@ -122,7 +124,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 27</div>
+    <div class="kicker">Testversion 28</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -151,7 +153,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>80 % weniger Widerstand</dt>
       <dd>Die Luft bremst dich nur noch mit einem Fünftel der Kraft, die sie im Alleinlauf bei gleichem Tempo hätte. Darunter steht die Kraft in Newton. Das sind nicht 80 % weniger Anstrengung: Der Luftwiderstand macht nur wenige Prozent deines Energiebedarfs aus.</dd>
       <dt>Berechnung läuft</dt>
-      <dd>Nach jeder Änderung rechnet die App zuerst grob, mit halber Auflösung. Nach etwa einer Sekunde steht eine erste Schätzung mit „≈“ da, sie liegt meist bis zu 3 Punkte daneben. Danach verfeinert sie, ausgehend vom groben Ergebnis. Die Angabe „± Punkte“ zeigt, wie stark der Wert zuletzt noch schwankte. Fertig ist die Messung, wenn vier Blöcke von je 100 Rechenschritten höchstens 0,4 Punkte auseinanderliegen. Angezeigt wird dann ihr Mittelwert. Der goldene Balken am oberen Bildrand zeigt den Fortschritt. Danach rechnet die App mit wenig Last weiter und mittelt über einen längeren Zeitraum. Das zeigt ein blasser Balken an derselben Stelle. Der Wert ändert sich dabei meist nur noch um Zehntelpunkte. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
+      <dd>Nach jeder Änderung rechnet die App zuerst grob, mit halber Auflösung. Nach etwa einer Sekunde steht eine erste Schätzung mit „≈“ da, sie liegt meist bis zu 3 Punkte daneben. Danach verfeinert sie, ausgehend vom groben Ergebnis. Solange gemessen wird, steht „≈“ vor dem Wert, und er kann noch um einige Punkte wandern. Fertig ist die Messung, wenn vier Blöcke von je 100 Rechenschritten höchstens 0,4 Punkte auseinanderliegen. Dann verschwindet das „≈“, darunter steht „✓ fertig“, und angezeigt wird der Mittelwert dieser Blöcke. Der goldene Balken am oberen Bildrand zeigt den Fortschritt. Danach rechnet die App mit wenig Last weiter und mittelt über einen längeren Zeitraum. Das zeigt ein blasser Balken an derselben Stelle. Der Wert ändert sich dabei meist nur noch um Zehntelpunkte. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
       <dt>Mindestabstand</dt>
       <dd>Wie dicht ein Pacer an dich oder einen anderen Läufer heran darf, hängt vom seitlichen Versatz ab (Mitte zu Mitte):
         <span style="display:block;margin-top:4px">unter 25 cm seitlich: mindestens 1,0 m längs<br>25 bis 45 cm: mindestens 0,5 m<br>45 bis 60 cm: mindestens 0,3 m<br>ab 60 cm: nebeneinander möglich</span>
@@ -1075,7 +1077,7 @@ cvS.addEventListener("click",()=>warn("Pacer setzt und verschiebst du in der Ans
 function readout(){
   const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace, rel=v+wind;   // rel = Fahrtwind allein, km/h
   const p=1-M.rel[1], settling=!M.done, coarse=M.phase==="coarse", P=PRESETS.find(q=>q.k===preset);
-  const prog=coarse?Math.min(15,15*M.n/1000):15+85*Math.min(0.97,M.n/1300);
+  const prog=coarse?Math.min(15,15*M.n/1000):15+85*Math.min(0.97,M.n/(sizeIx?3000:1300));
   const st=$("status"); st.className="status";
   if(noteN>0){noteN--; st.textContent=note; st.className="status warn"; var keepMsg=true;}
   else if(fieldMsg>0){fieldMsg--; st.textContent=lost?(lost===1?"1 Pacer lag außerhalb des kleinen Felds und ist entfernt.":lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt."):"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
@@ -1096,10 +1098,10 @@ function readout(){
     st.textContent="Hier gilt das Modell nicht. Nimm weniger Rückenwind."; st.className="status warn"; return;
   }
   const Fs=KD*Math.pow(rel/3.6,2), Fn=Fs*(1-p);
-  $("drag").textContent=!M.shown?"…":(coarse?"≈ ":"")+(Math.abs(p)<0.005?"wie allein":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr"));
-  $("dragSub").textContent=!settling?"Widerstand · "+de(Fn,1)+" statt "+de(Fs,1)+" N"
-    :coarse?"erste Schätzung · "+Math.round(prog)+" %"
-    :"wird verfeinert"+(M.spread!==null?" · ± "+de(Math.max(0.5,M.spread/2),1)+" Punkte":"")+" · "+Math.round(prog)+" %";
+  // Solange gemessen wird, steht ein ≈ davor. Der Endwert steht ohne ≈ und mit Haken darunter.
+  $("drag").textContent=!M.shown?"…":(settling?"≈ ":"")+(Math.abs(p)<0.005?"wie allein":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr"));
+  $("dragSub").textContent=!settling?"✓ fertig · "+de(Fn,1)+" statt "+de(Fs,1)+" N"
+    :coarse?"erste Schätzung · "+Math.round(prog)+" %":"Messung läuft · "+Math.round(prog)+" %";
   const bz=$("busy"); bz.style.opacity=settling?1:0.35;
   bz.style.width=settling?Math.round(prog)+"%":M.idle?"0":Math.round(100*M.rn/6000)+"%";
   // Gefühlter Wind: bei diesem Fahrtwind hättest du allein denselben Widerstand (Kraft wächst mit dem Quadrat des Winds)
@@ -1108,7 +1110,7 @@ function readout(){
   // Zeitgewinn bei gleicher Anstrengung
   const inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*p*inc/100, en=100*p*inc/(100+inc);
   $("result").textContent=!M.shown?"Berechnung läuft …"
-    :(coarse?"Erste Schätzung: ":settling?"Vorläufig: ":"")+(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
+    :(settling?"Vorläufig: ":"")+(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
   if(!keepMsg) st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
     :P.note?P.note
     :P.ref?"Studienwert: "+de(P.ref,1)+" % weniger ("+P.src+")"
