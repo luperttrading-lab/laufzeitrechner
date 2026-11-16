@@ -122,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 17</div>
+    <div class="kicker">Testversion 18</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -151,7 +151,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>80 % weniger Widerstand</dt>
       <dd>Die Luft bremst dich nur noch mit einem Fünftel der Kraft, die sie im Alleinlauf bei gleichem Tempo hätte. Darunter steht die Kraft in Newton. Das sind nicht 80 % weniger Anstrengung: Der Luftwiderstand macht nur wenige Prozent deines Energiebedarfs aus.</dd>
       <dt>Berechnung läuft</dt>
-      <dd>Nach jeder Änderung an der Aufstellung braucht die Strömung einige Sekunden, bis sie sich eingependelt hat. So lange steht „Berechnung läuft“ da, der goldene Balken am oberen Bildrand füllt sich, die Zahlen erscheinen erst im letzten Drittel und sind bis zum Ende vorläufig. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
+      <dd>Nach jeder Änderung rechnet die App zuerst grob, mit halber Auflösung. Nach etwa einer Sekunde steht eine erste Schätzung mit „≈“ da, sie liegt meist bis zu 3 Punkte daneben. Danach verfeinert sie, ausgehend vom groben Ergebnis. Die Angabe „± Punkte“ zeigt, wie stark der Wert zuletzt noch schwankte. Fertig ist die Messung, wenn vier Blöcke von je 100 Rechenschritten höchstens 0,4 Punkte auseinanderliegen. Angezeigt wird dann ihr Mittelwert. Der goldene Balken am oberen Bildrand zeigt den Fortschritt. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
       <dt>Mindestabstand</dt>
       <dd>Wie dicht ein Pacer an dich oder einen anderen Läufer heran darf, hängt vom seitlichen Versatz ab (Mitte zu Mitte):
         <span style="display:block;margin-top:4px">unter 25 cm seitlich: mindestens 1,0 m längs<br>25 bis 45 cm: mindestens 0,5 m<br>45 bis 60 cm: mindestens 0,3 m<br>ab 60 cm: nebeneinander möglich</span>
@@ -354,7 +354,9 @@ function createSim(NX,NY,P){
     const t=f; f=g; g=t;
   }
   reset();
-  return {NX,NY,P,body,ux,uy,fx,fy,step,reset,setBodies,setMap};
+  // Startzustand aus einem Geschwindigkeitsfeld (Gleichgewicht), z. B. aus der groben Vorrechnung
+  function init(U2,V2){for(let k=0;k<N;k++){if(body[k])continue; for(let i=0;i<9;i++)f[i*N+k]=feq(i,1,U2[k],V2[k]);}}
+  return {NX,NY,P,body,ux,uy,fx,fy,step,reset,setBodies,setMap,init};
 }
 //</core>
 
@@ -372,7 +374,47 @@ let sim=createSim(NX,NY,PAR);
 const me={x:MX,y:MY,a:A,b:B};
 const MAXP=10;                         // höchstens zehn Pacemaker
 let pacers=[], sel=-1, since=0, paused=false, preset="f1";
-const ema=new Float64Array(16);
+// ---- Messung: erst grob, dann fein ----------------------------------------
+// Grob: halbe Auflösung (6 cm). Ein Viertel der Zellen und halb so viele Schritte: nach etwa einer Sekunde steht
+// eine erste Schätzung, und das grobe Feld dient als Startfeld der feinen Rechnung.
+// Fein: Mittelwerte über Blöcke von je 100 Schritten. Fertig, wenn die letzten vier Blöcke höchstens 0,4 Punkte auseinanderliegen.
+const PARC={U:0.1,nu:0.004,cs:0.16,lam:0.0008,mu:0.4};
+let simC=null, F0c=0.04675140631198883;
+const M={phase:"coarse",n:0,blk:0,sum:new Float64Array(16),rel:new Float64Array(16).fill(1),hist:[],spread:null,shown:false,done:false,coarse:null};
+function startMeasure(){
+  if(!simC||simC.NX!==NX/2){simC=createSim(NX/2,NY/2,PARC); F0c=sizeIx?0.0467630607932806:0.04675140631198883;}
+  simC.setBodies([me].concat(pacers).map(q=>({x:q.x/2,y:q.y/2,a:q.a/2,b:q.b/2})));
+  Object.assign(M,{phase:"coarse",n:0,blk:0,hist:[],spread:null,shown:false,done:false,coarse:null}); M.sum.fill(0);
+}
+function blockDone(nb,F,b){for(let i=1;i<=nb;i++){M.rel[i]=M.sum[i]/b/F; M.sum[i]=0; if(M.phase==="fine"){(hist4[i]=hist4[i]||[]).push(M.rel[i]); if(hist4[i].length>4) hist4[i].shift();}} M.blk=0; M.hist.push(100*(1-M.rel[1]));
+  const h=M.hist, L=h.length;
+  if(M.phase==="fine"||(L>=3&&Math.abs(h[L-1]-h[L-2])<2&&Math.abs(h[L-2]-h[L-3])<2)) M.shown=true;   // vorher nur Anlaufschwankung
+}
+const hist4=[];                          // die letzten vier Blockwerte je Läufer, für den Mittelwert am Ende
+function mean4(nb){for(let i=1;i<=nb;i++){const a=hist4[i]||[]; if(a.length) M.rel[i]=a.reduce((x,y)=>x+y,0)/a.length;}}
+function toFine(){                       // feines Startfeld aus dem groben hochrechnen
+  const U2=new Float32Array(NX*NY), V2=new Float32Array(NX*NY), cx=NX/2;
+  for(let y=0;y<NY;y++) for(let x=0;x<NX;x++){const k=(y>>1)*cx+(x>>1); U2[y*NX+x]=simC.ux[k]; V2[y*NX+x]=simC.uy[k];}
+  sim.init(U2,V2); M.coarse=100*(1-M.rel[1]);
+  Object.assign(M,{phase:"fine",n:0,blk:0,hist:[],spread:null}); M.sum.fill(0); since=0; hist4.length=0;
+}
+function measureStep(budget){            // rechnet bis zum Zeitbudget, liefert die Zahl der feinen Schritte
+  const t0=performance.now(), nb=pacers.length+1; let fs=0;
+  while(!M.done&&performance.now()-t0<budget){
+    if(M.phase==="coarse"){
+      simC.step(); M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=simC.fy[i];
+      if(++M.blk===50){blockDone(nb,F0c,50); const h=M.hist, L=h.length;
+        if((M.n>=400&&L>=3&&Math.abs(h[L-1]-h[L-2])<0.5&&Math.abs(h[L-2]-h[L-3])<0.5)||M.n>=1600) toFine();}
+    } else {
+      sim.step(); since++; fs++; M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=sim.fy[i];
+      if(++M.blk===100){blockDone(nb,F0,100); const h=M.hist, L=h.length;
+        if(L>=4){const w=h.slice(-4); M.spread=Math.max(...w)-Math.min(...w);}
+        if((L>=5&&M.spread<=0.4)||M.n>=4000){M.done=true; mean4(nb);}}
+    }
+  }
+  if(sim.fy[1]!==sim.fy[1]||simC.fy[1]!==simC.fy[1]){sim.reset(); simC.reset(); place();}   // Rechnung entgleist: neu starten
+  return fs;
+}
 
 // vor = Meter vor dir, seit = Meter nach rechts
 const mk=(vor,seit)=>({x:MX+seit/DX,y:MY-vor/DX,a:A,b:B});
@@ -403,7 +445,7 @@ const $=id=>document.getElementById(id);
 const de=(x,n)=>x.toFixed(n).replace(".",",");
 const mmss=s=>{s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
 // Im Wirbelmodus stehen alle Körper 1 cm versetzt: die kleine Unsymmetrie stößt die Wirbelablösung an.
-function place(){sim.setBodies([me].concat(pacers).map(q=>vortex?{x:q.x+0.37,y:q.y,a:q.a,b:q.b}:q)); since=0;}
+function place(){sim.setBodies([me].concat(pacers).map(q=>vortex?{x:q.x+0.37,y:q.y,a:q.a,b:q.b}:q)); since=0; if(!vortex) startMeasure();}
 function apply(){kept=null; place();}
 function loadPreset(k){const P=PRESETS.find(p=>p.k===k);
   if(P.big&&sizeIx===0){pacers=[]; setZoom(1); fieldMsg=0;}   // Formation passt nur ins große Feld
@@ -487,7 +529,7 @@ $("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.
 $("clr").onclick=()=>loadPreset("solo");
 $("pause").onclick=()=>{paused=!paused;$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"▶":"❚❚";$("pause").setAttribute("aria-label",paused?"Weiter":"Pause");};
 $("vor").onclick=()=>{
-  if(!vortex&&since>=SETTLE) kept=1-ema[1]/F0;
+  if(!vortex&&M.done) kept=1-M.rel[1];
   vortex=!vortex; Object.assign(PAR,vortex?VOR:CAL); $("vor").setAttribute("aria-pressed",String(vortex));
   if(!vortex) sim.reset();   // sauber neu einschwingen, sonst misst der Messmodus in die Restwirbel hinein
   place(); readout();};
@@ -520,7 +562,7 @@ function setZoom(z){
     pacers=rel.map(r=>mk(r[0],r[1])).filter(q=>q.x>=A+1&&q.x<=NX-A-2&&q.y>=B+14&&q.y<=NY-B-16); sel=-1;
     lost=n0-pacers.length; if(lost) preset="";
     for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;}
-    ema.fill(0); apply(); ui();
+    apply(); ui();
   } else lost=0;
   const st=document.querySelector(".stage"), v=document.querySelector(".view");
   if(fit){st.style.maxWidth=Math.max(150,Math.floor((v.clientHeight-78)*NX/NY))+"px"; v.scrollTop=0;} else st.style.maxWidth="";
@@ -625,7 +667,7 @@ function draw(k){
     ctx.fillStyle=i===0?"#dba84a":"#aab8c8"; ctx.beginPath(); ctx.ellipse(X,Y,q.a*S,q.b*S,0,0,7); ctx.fill();
     ctx.fillStyle=i===0?"#8a6410":"#6c7c8e"; ctx.beginPath(); ctx.arc(X,Y,3.3*S,0,7); ctx.fill();
     if(i>0&&i-1===sel){ctx.strokeStyle="#fff";ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(X,Y,q.a*S+7,q.b*S+7,0,0,7);ctx.stroke();}
-    if(i>0&&since>600&&!vortex){const p=100*(ema[i+1]/F0-1);
+    if(i>0&&M.shown&&!vortex){const p=100*(M.rel[i+1]-1);
       ctx.font="700 "+(11/cssScale)+"px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#e8edf3";
       ctx.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",X,Y-q.b*S-12);}
   });
@@ -803,7 +845,7 @@ function drawSide(n){
   // Läufer: erst die außerhalb der Schnittebene (blass), dann die in der Ebene, du zuletzt
   const L=sideRunners().sort((a,b)=>(Math.abs(b.lat)>=SLICE)-(Math.abs(a.lat)>=SLICE)||(a.me?1:0)-(b.me?1:0));
   L.forEach(r=>{const P=pose(sideT/sp.Tc+r.ph0,sp.amp); drawFigure(P,r.along,r.me,Math.abs(r.lat)>=SLICE);
-    if(!r.me&&since>600&&!vortex){const p=100*(ema[r.i+1]/F0-1); cS.font="700 20px system-ui,sans-serif"; cS.textAlign="center";
+    if(!r.me&&M.shown&&!vortex){const p=100*(M.rel[r.i+1]-1); cS.font="700 20px system-ui,sans-serif"; cS.textAlign="center";
       cS.fillStyle=Math.abs(r.lat)>=SLICE?"rgba(232,237,243,.5)":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DX)*S2,groundY()-(P.head[1]+0.2)/DX*S2);}});
   cS.font="600 18px system-ui,sans-serif"; cS.textAlign="right"; cS.fillStyle="rgba(232,237,243,.75)";
@@ -814,7 +856,8 @@ cvS.addEventListener("click",()=>warn("Pacer setzt und verschiebst du in der Ans
 // ---- Anzeige --------------------------------------------------------------
 function readout(){
   const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace, rel=v+wind;   // rel = Fahrtwind allein, km/h
-  const p=1-ema[1]/F0, settling=since<SETTLE, P=PRESETS.find(q=>q.k===preset);
+  const p=1-M.rel[1], settling=!M.done, coarse=M.phase==="coarse", P=PRESETS.find(q=>q.k===preset);
+  const prog=coarse?Math.min(15,15*M.n/1000):15+85*Math.min(0.97,M.n/1300);
   const st=$("status"); st.className="status";
   if(noteN>0){noteN--; st.textContent=note; st.className="status warn"; var keepMsg=true;}
   else if(fieldMsg>0){fieldMsg--; st.textContent=lost?(lost===1?"1 Pacer lag außerhalb des kleinen Felds und ist entfernt.":lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt."):"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
@@ -835,16 +878,18 @@ function readout(){
     st.textContent="Hier gilt das Modell nicht. Nimm weniger Rückenwind."; st.className="status warn"; return;
   }
   const Fs=KD*Math.pow(rel/3.6,2), Fn=Fs*(1-p);
-  $("drag").textContent=since<0.6*SETTLE?"…":Math.abs(p)<0.005?"wie allein":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr");
-  $("dragSub").textContent=settling?"Berechnung läuft · "+Math.round(100*since/SETTLE)+" %":"Widerstand · "+de(Fn,1)+" statt "+de(Fs,1)+" N";
-  $("busy").style.width=settling?Math.round(100*since/SETTLE)+"%":"0";
+  $("drag").textContent=!M.shown?"…":(coarse?"≈ ":"")+(Math.abs(p)<0.005?"wie allein":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr"));
+  $("dragSub").textContent=!settling?"Widerstand · "+de(Fn,1)+" statt "+de(Fs,1)+" N"
+    :coarse?"erste Schätzung · "+Math.round(prog)+" %"
+    :"wird verfeinert"+(M.spread!==null?" · ± "+de(Math.max(0.5,M.spread/2),1)+" Punkte":"")+" · "+Math.round(prog)+" %";
+  $("busy").style.width=settling?Math.round(prog)+"%":"0";
   // Gefühlter Wind: bei diesem Fahrtwind hättest du allein denselben Widerstand (Kraft wächst mit dem Quadrat des Winds)
-  $("inflow").textContent=since<0.6*SETTLE?"…":de(rel*Math.sqrt(Math.max(0,1-p)),1)+" km/h";
+  $("inflow").textContent=!M.shown?"…":de(rel*Math.sqrt(Math.max(0,1-p)),1)+" km/h";
   $("inflowSub").textContent="gefühlter Wind · allein "+de(rel,1);
   // Zeitgewinn bei gleicher Anstrengung
   const inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*p*inc/100, en=100*p*inc/(100+inc);
-  $("result").textContent=since<0.6*SETTLE?"Berechnung läuft …"
-    :(settling?"Berechnung läuft … vorläufig ":"")+(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
+  $("result").textContent=!M.shown?"Berechnung läuft …"
+    :(coarse?"Erste Schätzung: ":settling?"Vorläufig: ":"")+(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
   if(!keepMsg) st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
     :P.note?P.note
     :P.ref?"Studienwert: "+de(P.ref,1)+" % weniger ("+P.src+")"
@@ -854,13 +899,12 @@ let frame=0;
 function loop(){
   let steps=0;
   if(!paused&&!document.hidden){
-    if((vortex&&!sideView)||since<SETTLE+800){
-      const t0=performance.now(), lim=sideView?6:11;            // in der Seitenansicht rechnet die Draufsicht nur nebenher fertig
-      do{sim.step(); steps++; since++;
-        const al=since<300?1/since:1/300; for(let i=1;i<=pacers.length+1;i++) ema[i]+=al*(sim.fy[i]-ema[i]);
-      }while(steps<14&&performance.now()-t0<lim);
-      if(sim.fy[1]!==sim.fy[1]){sim.reset(); place();}   // Rechnung entgleist: neu starten
-    } else steps=8;   // Strömung steht: nur noch die Teilchen bewegen
+    if(vortex&&!sideView){                                     // Wirbelmodus: nur das Bild, keine Messung
+      const t0=performance.now();
+      do{sim.step(); steps++; since++;}while(steps<14&&performance.now()-t0<11);
+      if(sim.fy[1]!==sim.fy[1]){sim.reset(); place();}
+    } else if(!M.done) steps=measureStep(sideView?6:24);       // beim Messen mehr Zeit fürs Rechnen; in der Seitenansicht nur nebenher
+    else steps=8;   // Strömung steht: nur noch die Teilchen bewegen
     const rel=3600/(+$("pace").value)+(+$("wind").value);
     // Im Messmodus laufen die Teilchen immer gleich schnell, egal wie viele Rechenschritte das Gerät gerade schafft.
     if(sideView) drawSide(sideStep());
