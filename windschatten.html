@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Windschatten-Rechner Marathon</title>
+<style>
+/* Layout: zwei Spalten (Eingabe | Ergebnis), darunter einspaltige Prüf- und Vergleichstabellen. */
+:root{
+  --paper:#f7f3e9; --card:#fffdf8; --ink:#142d49; --text2:#33495d; --muted:#617080;
+  --gold:#a8721a; --line:#d9d1c2; --tile:#e9eef2; --track:#e0e3e4;
+  --hl-bg:#f8edcf; --hl-line:#e8cc8b; --note-bg:#f5f0e4; --link:#174d78;
+  --ok:#1f6f4a; --ok-bg:#dff0e6; --warn:#8a5a00; --warn-bg:#fbe9c2; --fix:#1d4f8a; --fix-bg:#dde9f6;
+  --display:Georgia,"Times New Roman",serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
+    --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --track:#2b3d52;
+    --hl-bg:#2a2616; --hl-line:#5c4a1c; --note-bg:#1a2a3d; --link:#8fc0ea;
+    --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12; --fix:#9cc4f0; --fix-bg:#172f4a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#0f1b2a; --card:#162638; --ink:#e8edf3; --text2:#c3cedb; --muted:#9aa9b8;
+  --gold:#dba84a; --line:#2b3d52; --tile:#1d3046; --track:#2b3d52;
+  --hl-bg:#2a2616; --hl-line:#5c4a1c; --note-bg:#1a2a3d; --link:#8fc0ea;
+  --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12; --fix:#9cc4f0; --fix-bg:#172f4a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.45 var(--body);font-variant-numeric:tabular-nums}
+main{max-width:980px;margin:auto;padding:24px 18px 40px;display:flex;flex-direction:column;gap:16px}
+header{border-bottom:2px solid var(--gold);padding:6px 0 18px}
+.kicker{font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:800}
+h1{font:700 clamp(1.9rem,5vw,3rem)/1.05 var(--display);margin:8px 0;text-wrap:balance}
+.lead{max-width:65ch;color:var(--text2);font-size:1.05rem;margin:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+h2{font:700 1.3rem var(--display);margin:0 0 12px;text-wrap:balance}
+p{margin:0 0 10px;max-width:70ch}
+label{display:block;font-size:.86rem;font-weight:700;color:var(--text2);margin:14px 0 4px}
+.val{font:700 1.5rem var(--display);color:var(--ink)}
+.val small{font:400 .85rem var(--body);color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--gold);margin:6px 0 2px;height:28px}
+input[type=range]:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.small{font-size:.83rem;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font:600 .82rem var(--body);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:99px;padding:7px 11px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.metric{background:var(--tile);border-radius:12px;padding:12px}
+.metric b{display:block;font:700 clamp(1.3rem,3vw,1.9rem) var(--display)}
+.metric span{font-size:.76rem;color:var(--muted)}
+.highlight{background:var(--hl-bg);border:1px solid var(--hl-line);border-radius:12px;padding:13px;margin-top:12px}
+.barwrap{height:12px;background:var(--track);border-radius:99px;overflow:hidden;margin:8px 0}
+.bar{height:100%;background:var(--gold);width:0%}
+.note{border-left:4px solid var(--gold);padding:10px 12px;background:var(--note-bg);color:var(--text2);border-radius:0 8px 8px 0;margin-top:12px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:8px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+td.num,th.num{text-align:right;white-space:nowrap}
+tr.cur td{background:var(--hl-bg);font-weight:700}
+.pill{display:inline-block;border-radius:99px;padding:2px 9px;font-size:.74rem;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.fix{background:var(--fix-bg);color:var(--fix)}
+code{font:.86rem ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--tile);padding:1px 5px;border-radius:5px}
+.formula{font:.88rem/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--tile);border-radius:10px;padding:12px;overflow-x:auto;white-space:pre}
+ul,ol{margin:0;padding-left:20px} li{margin:7px 0;max-width:70ch}
+a{color:var(--link);overflow-wrap:anywhere}
+footer{color:var(--muted);font-size:.8rem}
+@media(max-width:700px){
+  .grid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.metrics .metric:first-child{grid-column:1/-1}main{padding:16px 16px 30px}
+  table{font-size:.84rem} th,td{padding:8px 4px}
+  table.stack thead{display:none}
+  table.stack tr{display:block;padding:10px 0;border-bottom:1px solid var(--line)}
+  table.stack td{display:block;border:0;padding:2px 0;text-align:left;white-space:normal}
+  table.stack td:first-child{font-weight:700}
+  table.stack td[data-label]::before{content:attr(data-label) ": ";color:var(--muted);font-weight:400}
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="kicker">Marathon · Aerodynamik · Testversion</div>
+  <h1>Was bringt der Windschatten?</h1>
+  <p class="lead">Geprüfte Fassung des Rechners. Jede Zahl trägt ihren Status: aus den Abstracts der Studien bestätigt, nachgerechnet oder nicht prüfbar.</p>
+</header>
+
+<div class="grid">
+  <section class="panel">
+    <h2>1 · Dein Szenario</h2>
+    <label for="time">Marathonzeit ohne Windschatten</label>
+    <div class="val"><span id="timeOut">4:00 h</span> <small id="paceOut"></small></div>
+    <input type="range" id="time" min="120" max="300" step="5" value="240">
+    <div class="small">2:00 bis 5:00 h. Außerhalb davon gibt es keine Stützwerte.</div>
+
+    <label for="drag">Weniger Luftwiderstand durch die Formation</label>
+    <div class="val"><span id="dragOut">57,3 %</span></div>
+    <input type="range" id="drag" min="0" max="85" step="0.1" value="57.3">
+    <div class="chips" id="chips"></div>
+    <p class="small" id="presetInfo" style="margin-top:10px"></p>
+  </section>
+
+  <section class="panel">
+    <h2>2 · Ergebnis</h2>
+    <div class="metrics">
+      <div class="metric"><b id="saving">–</b><span>Zeitvorteil über 42,195 km</span></div>
+      <div class="metric"><b id="energy">–</b><span>weniger Energiebedarf als im Solo-Lauf</span></div>
+      <div class="metric"><b id="pace">–</b><span>pro Kilometer</span></div>
+    </div>
+    <div class="highlight">
+      <strong id="rangeTitle">Individuelle Spanne</strong>
+      <div id="rangeText" style="margin-top:4px"></div>
+      <div class="barwrap" aria-hidden="true"><div class="bar" id="sharebar"></div></div>
+      <span class="small" id="shareText"></span>
+    </div>
+    <div class="note" id="statusNote"></div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>3 · Gleiche Formation bei anderem Tempo</h2>
+  <p class="small">Luftanteil ist der Anteil des Luftwiderstands am Energiebedarf im Solo-Lauf. Er fällt mit dem Quadrat des Tempos. Weil langsamere Läufer länger unterwegs sind, bleibt der Zeitvorteil in Sekunden trotzdem ähnlich groß.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Zeit</th><th class="num">Luftanteil</th><th class="num">Energie</th><th class="num">Vorteil</th><th class="num">pro km</th></tr></thead>
+      <tbody id="paceTable"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>4 · So wird gerechnet</h2>
+  <div class="formula" id="formula"></div>
+  <p class="small" style="margin-top:10px">k und der Widerstand bei 2-h-Tempo stammen aus dem Abstract von da Silva et al. Der Faktor r(T) übersetzt gesparte Energie in Tempo. Er ist aus den Zeitangaben für 2, 3, 4 und 5 h zurückgerechnet und dazwischen linear interpoliert. Für 2 h ist er bestätigt, für 3 bis 5 h nicht.</p>
+</section>
+
+<section class="panel">
+  <h2>5 · Wie stark die Studien voneinander abweichen</h2>
+  <p class="small">Für dieselbe Formation bei rund 2-h-Tempo: links die Umrechnung nach da Silva et al., rechts die Schätzung der Aerodynamik-Studie selbst. Der Rechner oben folgt der linken Spalte, also der optimistischeren.</p>
+  <div class="scroll">
+    <table class="stack">
+      <thead><tr><th>Formation</th><th class="num">Dieser Rechner</th><th>Schätzung der Originalstudie</th></tr></thead>
+      <tbody id="spreadTable"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>6 · Prüfprotokoll der Vorlage</h2>
+  <div class="scroll">
+    <table class="stack">
+      <thead><tr><th>Angabe in der Vorlage</th><th>Status</th><th>Befund</th></tr></thead>
+      <tbody>
+        <tr><td>6,13 % mehr Energiebedarf je 1 % Körpergewicht Zugkraft</td><td><span class="pill ok">bestätigt</span></td><td>Abstract da Silva et al. Einzelne Läufer: 4,17 bis 8,14 %.</td></tr>
+        <tr><td>2-h-Tempo, 52 kg: Luftwiderstand 1,39 % des Körpergewichts, 7,8 % des Energiebedarfs</td><td><span class="pill ok">bestätigt</span></td><td>Abstract. 6,13 × 1,39 = 8,52 % Mehrbedarf, das sind 7,85 % des Solo-Bedarfs.</td></tr>
+        <tr><td>Zeitvorteil 3:42 bis 5:29 min bei 2 h</td><td><span class="pill ok">bestätigt</span></td><td>Abstract. 85 % gilt dort als realistische Obergrenze.</td></tr>
+        <tr><td>57,3 % und 63,3 % weniger Widerstand</td><td><span class="pill ok">bestätigt</span></td><td>Polidori et al. (38,5 bis 57,3 % je nach Position) und Beaumont et al. (Position 2 von 5).</td></tr>
+        <tr><td>Anteile 3,6 / 2,1 / 1,3 % bei 3 / 4 / 5 h</td><td><span class="pill ok">nachgerechnet</span></td><td>Ergibt sich exakt, wenn man den 52-kg-Körper langsamer laufen lässt. Ein eigenes Freizeitläufer-Modell ist das nicht.</td></tr>
+        <tr><td>Zeitvorteile 3:08 / 2:59 / 3:00 min bei 3 / 4 / 5 h</td><td><span class="pill warn">nicht prüfbar</span></td><td>Stehen in keinem frei zugänglichen Text. Der Volltext liegt hinter einer Bezahlschranke.</td></tr>
+        <tr><td>Formationen 72,2 % und 76,0 %</td><td><span class="pill warn">nicht prüfbar</span></td><td>Schickhofer und Hanson nennen 70,1 % und 75,6 %. Der Energiewert 6,44 % der Vorlage passt zu 75,6 %, nicht zu 76,0 %.</td></tr>
+        <tr><td>„4,87 % weniger Brutto-Energiebedarf“</td><td><span class="pill fix">korrigiert</span></td><td>Der Wert bezieht sich auf den Bedarf ohne Luftwiderstand. Gegenüber dem Solo-Lauf sind es 4,50 %.</td></tr>
+        <tr><td>Energiewert zwischen den Stützstellen linear interpoliert</td><td><span class="pill fix">korrigiert</span></td><td>Bei 2:30 h zeigte die Vorlage 3,51 % statt 3,12 %, also 12 % zu viel. Jetzt wird mit dem Quadrat des Tempos gerechnet.</td></tr>
+        <tr><td>Auswahl Gegenwind / Rückenwind</td><td><span class="pill fix">entfernt</span></td><td>Die Auswahl änderte nur einen Hinweistext, keine Zahl.</td></tr>
+        <tr><td>76-%-Formation bei 2 h</td><td><span class="pill fix">korrigiert</span></td><td>Die Vorlage zeigte 4:54, ihr eigener Text nannte 4:53.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>7 · Grenzen</h2>
+  <ul>
+    <li><strong>Ein Körper für alle Tempi.</strong> Alle Werte gelten für den 52-kg-Referenzläufer der Studie. Schwerere Läufer haben pro Kilogramm weniger Stirnfläche, der relative Effekt fällt bei ihnen eher kleiner aus.</li>
+    <li><strong>Formationen aus der Simulation.</strong> Die Prozentwerte gelten für feste Abstände von etwa einem Meter in ruhender Luft. Im Feld eines Volksmarathons hält niemand diese Position über 42 km.</li>
+    <li><strong>Wind ist nicht enthalten.</strong> Gegenwind vergrößert den Nutzen, Rückenwind verkleinert ihn. Ohne Windstärke und Streckenverlauf lässt sich das nicht beziffern.</li>
+    <li><strong>Laufband statt Straße.</strong> Der Energiewert stammt aus Versuchen bei 12 bis 16 km/h mit einem Zuggurt, 2-h-Tempo sind 21,1 km/h.</li>
+    <li><strong>Hitze.</strong> Wer dicht im Pulk läuft, wird auch schlechter gekühlt. Das rechnet kein Modell hier mit.</li>
+  </ul>
+</section>
+
+<section class="panel">
+  <h2>Quellen</h2>
+  <ol>
+    <li>da Silva, E. S., Kram, R. &amp; Hoogkamer, W. (2022). The metabolic cost of emulated aerodynamic drag forces in marathon running. Journal of Applied Physiology, 133(3), 766–776. <a href="https://doi.org/10.1152/japplphysiol.00086.2022">doi:10.1152/japplphysiol.00086.2022</a></li>
+    <li>Polidori, G. et al. (2020). Numerical investigation of the impact of Kenenisa Bekele’s cooperative drafting strategy on its running power during the 2019 Berlin marathon. Journal of Biomechanics, 107, 109854. <a href="https://doi.org/10.1016/j.jbiomech.2020.109854">doi:10.1016/j.jbiomech.2020.109854</a></li>
+    <li>Beaumont, F. et al. Aerodynamic interaction between in-line runners: new insights on the drafting strategy in running. Sports Biomechanics, online 2021, Heft 23(11) 2024. <a href="https://doi.org/10.1080/14763141.2021.2006295">doi:10.1080/14763141.2021.2006295</a></li>
+    <li>Schickhofer, L. &amp; Hanson, H. (2021). Aerodynamic effects and performance improvements of running in drafting formations. Journal of Biomechanics, 122, 110457. <a href="https://arxiv.org/abs/2104.11976">arXiv:2104.11976</a></li>
+  </ol>
+</section>
+
+<footer>Rechnerischer Modellwert bei gleicher Belastung, keine Rennprognose. Geprüft wurden die Abstracts und frei zugänglichen Fassungen, nicht die Volltexte hinter Bezahlschranken.</footer>
+</main>
+
+<script>
+// ---- Modell ---------------------------------------------------------------
+const K=6.13;          // % mehr Brutto-Energiebedarf je 1 % Körpergewicht Zugkraft (da Silva, Abstract)
+const K_MIN=4.17, K_MAX=8.14;   // Spanne der 12 Probanden (Abstract)
+const BW2H=1.39;       // Luftwiderstand in % Körpergewicht bei 2-h-Tempo, 52 kg (Abstract)
+const KM=42.195;
+// Zeitvorteil in s bei 57,3 % Widerstandsreduktion. 2 h: Abstract. 3-5 h: aus der Vorlage, nicht prüfbar.
+const ANCHORS=[[120,222],[180,188],[240,179],[300,180]];
+
+function inc(Tmin){ return K*BW2H*Math.pow(120/Tmin,2); }        // % Mehrbedarf ggü. Lauf ohne Luftwiderstand
+// r = (relativer Tempogewinn) / (gesparte Energie, relativ zum Bedarf ohne Luftwiderstand)
+const R=ANCHORS.map(([T,s])=>[T,(s/(T*60))/(0.573*inc(T)/100)]);
+function ratio(Tmin){
+  const T=Math.min(300,Math.max(120,Tmin));
+  for(let i=0;i<R.length-1;i++){
+    const [a,ra]=R[i],[b,rb]=R[i+1];
+    if(T<=b) return ra+(T-a)/(b-a)*(rb-ra);
+  }
+  return R[R.length-1][1];
+}
+function model(Tmin,d){
+  const e=inc(Tmin);
+  const share=100*e/(100+e);              // Anteil des Luftwiderstands am Solo-Bedarf, %
+  const saveSolo=d/100*share;             // gesparte Energie relativ zum Solo-Lauf, %
+  const r=ratio(Tmin);
+  const sec=Tmin*60*r*(d/100)*(e/100);    // Zeitvorteil, s
+  return {inc:e,share,saveSolo,r,sec,secMin:sec*K_MIN/K,secMax:sec*K_MAX/K,perKm:sec/KM};
+}
+
+// ---- Daten für die Oberfläche --------------------------------------------
+const PRESETS=[
+  {d:33.4,label:"33,4 %",name:"Pacer seitlich",src:"Schickhofer & Hanson, Formation 4. Die schwächste der vier simulierten Aufstellungen."},
+  {d:38.5,label:"38,5 %",name:"Bekele, ungünstigste Position",src:"Polidori et al., CFD-Nachbildung Berlin 2019."},
+  {d:57.3,label:"57,3 %",name:"Bekele, beste Position hinter den Pacern",src:"Polidori et al. Referenzfall für alle Zeitangaben."},
+  {d:63.3,label:"63,3 %",name:"Position 2 in einer Fünferreihe",src:"Beaumont et al."},
+  {d:70.1,label:"70,1 %",name:"Formation 1",src:"Schickhofer & Hanson."},
+  {d:75.6,label:"75,6 %",name:"Pacer vorn und hinten",src:"Schickhofer & Hanson, Formation 2. Die beste der vier simulierten Aufstellungen."},
+  {d:85,label:"85 %",name:"Obergrenze",src:"da Silva et al. nennen 85 % als das, was ideales Drafting bestenfalls erreicht."}
+];
+const SPREAD=[
+  {d:57.3,name:"57,3 % · Polidori et al.",own:"2,84 % weniger Energiebedarf bei 5,75 m/s. Das Abstract nennt keine Zeit."},
+  {d:63.3,name:"63,3 % · Beaumont et al.",own:"3:28 min (4,4 % bessere Laufökonomie, 2,9 % schneller)"},
+  {d:75.6,name:"75,6 % · Schickhofer & Hanson",own:"2:34 min (3,5 % bessere Laufökonomie, 2,3 % schneller)"}
+];
+
+// ---- Darstellung ----------------------------------------------------------
+const $=id=>document.getElementById(id);
+const de=(x,n)=>x.toFixed(n).replace(".",",");
+function mmss(sec){const s=Math.round(sec);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function hmm(Tmin){return Math.floor(Tmin/60)+":"+String(Tmin%60).padStart(2,"0")+" h";}
+
+function render(){
+  const T=+$("time").value, d=+$("drag").value, m=model(T,d);
+  $("timeOut").textContent=hmm(T);
+  $("paceOut").textContent=mmss(T*60/KM)+" min/km · "+de(KM/(T/60),1)+" km/h";
+  $("dragOut").textContent=de(d,1)+" %";
+
+  const p=PRESETS.find(x=>Math.abs(x.d-d)<0.05);
+  document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",String(!!p&&+c.dataset.d===p.d)));
+  $("presetInfo").textContent=p?p.name+". "+p.src:"Eigener Wert. Keine Studie hat genau diese Formation simuliert.";
+
+  $("saving").textContent=mmss(m.sec)+" min";
+  $("energy").textContent=de(m.saveSolo,2)+" %";
+  $("pace").textContent=de(m.perKm,1)+" s";
+  $("rangeText").textContent=mmss(m.secMin)+" bis "+mmss(m.secMax)+" min, je nachdem wie stark dein Energiebedarf auf Luftwiderstand reagiert (kleinster und größter der 12 Probanden).";
+  $("sharebar").style.width=Math.min(100,m.share/8*100)+"%";
+  $("shareText").textContent="Luftwiderstand im Solo-Lauf: "+de(m.share,1)+" % deines Energiebedarfs. Skala des Balkens: 0 bis 8 %.";
+
+  $("statusNote").innerHTML=T===120
+    ?'<span class="pill ok">bestätigt</span> Bei 2-h-Tempo deckt sich die Rechnung mit dem Abstract von da Silva et al. (3:42 min bei 57,3 %, 5:29 min bei 85 %).'
+    :'<span class="pill warn">nicht prüfbar</span> Die Umrechnung von Energie in Zeit stützt sich bei diesem Tempo auf Werte für 3, 4 und 5 h, die sich nicht am Volltext prüfen ließen. Der Energiewert selbst ist nachgerechnet.';
+
+  const rows=[120,150,180,210,240,270,300];
+  $("paceTable").innerHTML=rows.map(t=>{const x=model(t,d);
+    return '<tr'+(t===T?' class="cur"':'')+'><td>'+hmm(t)+'</td><td class="num">'+de(x.share,1)+' %</td><td class="num">'+de(x.saveSolo,2)+' %</td><td class="num">'+mmss(x.sec)+'</td><td class="num">'+de(x.perKm,1)+' s</td></tr>';}).join("");
+
+  $("formula").textContent=
+    "Mehrbedarf durch Luft   = k × Widerstand(2 h) × (2 h / T)²\n"+
+    "                        = "+de(K,2)+" × "+de(BW2H,2)+" × ("+de(120/T,3)+")² = "+de(m.inc,2)+" %\n"+
+    "Anteil am Solo-Bedarf   = "+de(m.inc,2)+" / (100 + "+de(m.inc,2)+") = "+de(m.share,2)+" %\n"+
+    "Energie gespart         = "+de(d,1)+" % × "+de(m.share,2)+" % = "+de(m.saveSolo,2)+" %\n"+
+    "Zeitvorteil             = T × r(T) × "+de(d,1)+" % × "+de(m.inc,2)+" %\n"+
+    "                        = "+(T*60)+" s × "+de(m.r,3)+" × "+de(d/100*m.inc/100,5)+" = "+de(m.sec,0)+" s";
+}
+
+$("chips").innerHTML=PRESETS.map(p=>'<button type="button" class="chip" data-d="'+p.d+'" aria-pressed="false">'+p.label+'</button>').join("");
+$("chips").addEventListener("click",ev=>{const b=ev.target.closest(".chip");if(!b)return;$("drag").value=b.dataset.d;render();});
+$("spreadTable").innerHTML=SPREAD.map(s=>{const x=model(120,s.d);
+  return '<tr><td>'+s.name+'</td><td class="num" data-label="Dieser Rechner">'+mmss(x.sec)+' min · '+de(x.saveSolo,2)+' %</td><td data-label="Originalstudie">'+s.own+'</td></tr>';}).join("");
+["time","drag"].forEach(id=>$(id).addEventListener("input",render));
+render();
+</script>
+</body>
+</html>
