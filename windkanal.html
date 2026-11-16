@@ -63,21 +63,14 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .chips button{flex:none}
 .row{display:flex;gap:6px;align-items:center}
 .row .sq{width:42px;height:38px;padding:0;font-size:1rem;flex:none}
-.ctl + .ctl{margin-top:8px}
-.ctl-h{display:flex;justify-content:space-between;align-items:baseline;font-size:.8rem;color:var(--text2);font-weight:700}
-.ctl-h b{font-size:.92rem;color:var(--ink)}
-.ctl-r{display:flex;align-items:flex-start;gap:14px}
-.ctl-r .sq{width:44px;height:40px;padding:0;font-size:1.25rem;flex:none}
-.track{position:relative;flex:1;height:46px;touch-action:none;cursor:pointer}
-.track .line{position:absolute;left:0;right:0;top:17px;height:6px;border-radius:3px;background:var(--line)}
-.track .fill{position:absolute;top:17px;height:6px;border-radius:3px;background:var(--gold)}
-.track .tick{position:absolute;top:12px;width:2px;height:16px;margin-left:-1px;background:var(--muted);opacity:.55}
-.track .tick.zero{top:7px;height:26px;width:3px;margin-left:-1.5px;background:var(--ink);opacity:1}
-.track .num{position:absolute;top:31px;transform:translateX(-50%);font-size:.68rem;color:var(--muted);white-space:nowrap}
-.track .num.zero{color:var(--ink);font-weight:800}
-.track .tick.word{display:none}
-.track .thumb{position:absolute;top:6px;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:var(--gold);border:3px solid var(--card);box-shadow:0 1px 4px rgba(0,0,0,.35)}
-.track:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.wheels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wcell{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:5px 4px 4px;min-width:0}
+.wlabel{font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:3px;border-bottom:1px solid var(--line)}
+.wheel{position:relative;height:96px;overflow:hidden;touch-action:none;cursor:ns-resize}
+.wlist{will-change:transform}
+.witem{height:32px;line-height:32px;text-align:center;font-weight:700;font-size:1rem;white-space:nowrap;color:var(--ink)}
+.wband{position:absolute;left:6px;right:6px;top:32px;height:32px;border-top:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);pointer-events:none}
+.whint{font-size:.74rem;color:var(--muted);text-align:center;padding-top:3px;border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--text2)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
 .scroll{overflow-x:auto}
@@ -96,7 +89,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion</div>
+    <div class="kicker">Testversion 6</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -129,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Wirbel</dt>
       <dd>Der Schalter zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
-      <dd>Unter „Tempo + Wind“ stellst du beides ein: Skala antippen, Knopf ziehen oder mit − und + in Schritten von 1 km/h und 5 Sekunden pro Kilometer. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
+      <dd>Unter „Tempo + Wind“ stehen zwei Räder wie im Laufzeit-Rechner: senkrecht drehen, oder den Wert darüber oder darunter antippen. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
     </dl>
   </section>
 
@@ -179,21 +172,9 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
     <div class="small">Pfeile verschieben den gewählten Pacer um 5 cm.</div>
   </div>
   <div class="pane" id="pane-wind" hidden>
-    <div class="ctl">
-      <div class="ctl-h"><span>Wind</span><b id="windOut"></b></div>
-      <div class="ctl-r">
-        <button type="button" class="sq" id="windMinus" aria-label="1 km/h mehr Rückenwind">−</button>
-        <div class="track" id="windTrack" role="slider" tabindex="0" aria-label="Wind in km/h, positiv ist Gegenwind"></div>
-        <button type="button" class="sq" id="windPlus" aria-label="1 km/h mehr Gegenwind">+</button>
-      </div>
-    </div>
-    <div class="ctl">
-      <div class="ctl-h"><span>Lauftempo</span><b id="paceOut"></b></div>
-      <div class="ctl-r">
-        <button type="button" class="sq" id="paceMinus" aria-label="5 Sekunden pro Kilometer schneller">−</button>
-        <div class="track" id="paceTrack" role="slider" tabindex="0" aria-label="Lauftempo in Sekunden pro Kilometer"></div>
-        <button type="button" class="sq" id="pacePlus" aria-label="5 Sekunden pro Kilometer langsamer">+</button>
-      </div>
+    <div class="wheels">
+      <div class="wcell"><div class="wlabel">Wind · km/h</div><div id="wWind"></div><div class="whint" id="windOut"></div></div>
+      <div class="wcell"><div class="wlabel">Lauftempo · min/km</div><div id="wPace"></div><div class="whint" id="paceOut"></div></div>
     </div>
     <input type="hidden" id="pace" value="240"><input type="hidden" id="wind" value="0">
   </div>
@@ -349,8 +330,8 @@ function ui(){
   ["nU","nD","nL","nR","del"].forEach(id=>$(id).disabled=!s);
   $("clr").disabled=!pacers.length;
   const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace;
-  $("paceOut").textContent=mmss(pace)+" min/km · "+de(v,1)+" km/h";
-  $("windOut").textContent=wind===0?"Windstille":Math.abs(wind)+" km/h "+(wind>0?"Gegenwind":"Rückenwind");
+  $("paceOut").textContent="= "+de(v,1)+" km/h";
+  $("windOut").textContent=v+wind<3?"kaum Fahrtwind":"Fahrtwind "+de(v+wind,1)+" km/h";
 }
 
 // ---- Bedienung ------------------------------------------------------------
@@ -386,29 +367,50 @@ function showTab(t){document.querySelectorAll(".tabs [role=tab]").forEach(b=>b.s
 document.querySelector(".tabs").addEventListener("click",ev=>{const b=ev.target.closest("[role=tab]");if(b)showTab(b.dataset.t);});
 $("presets").innerHTML=PRESETS.map(p=>'<button type="button" data-k="'+p.k+'" aria-pressed="false">'+p.t+'</button>').join("");
 $("presets").addEventListener("click",ev=>{const b=ev.target.closest("button");if(b)loadPreset(b.dataset.k);});
-// Regler mit Skala: antippen, ziehen oder mit − und + schrittweise stellen
-function slider(id,min,max,step,marks,zero){
-  const el=$(id+"Track"), inp=$(id), pos=v=>100*(v-min)/(max-min);
-  el.innerHTML='<div class="line"></div><div class="fill"></div>'
-    +marks.map(m=>'<div class="tick'+(m[0]===zero?' zero':'')+(/[a-z]/.test(m[1])?' word':'')+'" style="left:'+pos(m[0])+'%"></div>'+(m[1]!==""?'<div class="num'+(m[0]===zero?' zero':'')+'" style="left:'+pos(m[0])+'%">'+m[1]+'</div>':'')).join("")
-    +'<div class="thumb"></div>';
-  const thumb=el.querySelector(".thumb"), fill=el.querySelector(".fill");
-  function set(v){v=Math.min(max,Math.max(min,Math.round(v/step)*step)); inp.value=v; thumb.style.left=pos(v)+"%";
-    if(zero===null) fill.style.display="none"; else {const a=Math.min(pos(v),pos(zero)), b=Math.max(pos(v),pos(zero)); fill.style.left=a+"%"; fill.style.width=(b-a)+"%";}
-    el.setAttribute("aria-valuenow",v); ui(); readout();}
-  const at=ev=>{const r=el.getBoundingClientRect(); set(min+(ev.clientX-r.left)/r.width*(max-min));};
-  let on=false;
-  el.addEventListener("pointerdown",ev=>{on=true;try{el.setPointerCapture(ev.pointerId);}catch(e){}at(ev);ev.preventDefault();});
-  el.addEventListener("pointermove",ev=>{if(on)at(ev);});
-  ["pointerup","pointercancel"].forEach(t=>el.addEventListener(t,()=>{on=false;}));
-  el.addEventListener("touchmove",ev=>ev.preventDefault(),{passive:false});
-  el.addEventListener("keydown",ev=>{if(ev.key==="ArrowLeft")set(+inp.value-step);if(ev.key==="ArrowRight")set(+inp.value+step);});
-  $(id+"Minus").onclick=()=>set(+inp.value-step); $(id+"Plus").onclick=()=>set(+inp.value+step);
-  el.setAttribute("aria-valuemin",min); el.setAttribute("aria-valuemax",max);
-  return set;
+// Rad wie im Laufzeit-Rechner: senkrecht drehen, rastet ein. Tippen auf den oberen oder unteren Wert geht einen Schritt.
+function makeWheel(mountId,vals,fmt,onChange){
+  const ITEM=32, el=$(mountId), max=(vals.length-1)*ITEM;
+  el.innerHTML='<div class="wheel"><div class="wlist">'+vals.map(v=>'<div class="witem">'+fmt(v)+'</div>').join("")+'</div><div class="wband"></div></div>';
+  const wheel=el.firstChild, list=wheel.firstChild, items=list.children;
+  let pos=0, cur=-1, anim=null;
+  const clamp=y=>Math.max(0,Math.min(max,y)), idx=()=>Math.round(clamp(pos)/ITEM);
+  function paint(){
+    list.style.transform="translateY("+(ITEM-pos)+"px)";
+    const c=idx();
+    for(let i=Math.max(0,c-3);i<=Math.min(vals.length-1,c+3);i++){const d=Math.abs(i*ITEM-pos)/ITEM, it=items[i];
+      it.style.opacity=Math.max(0.32,1-d*0.5); it.style.transform="scale("+(d<0.5?1.14:0.88)+")"; it.style.color=d<0.5?"var(--gold)":"";}
+    if(c!==cur){cur=c; onChange(vals[c]);}
+  }
+  const stop=()=>{if(anim){cancelAnimationFrame(anim);anim=null;}};
+  function glide(to){stop(); const from=pos, t0=performance.now();
+    const f=now=>{const k=Math.min(1,(now-t0)/140); pos=from+(to-from)*(1-(1-k)*(1-k)); paint(); anim=k<1?requestAnimationFrame(f):null;};
+    anim=requestAnimationFrame(f);}
+  const snap=()=>glide(idx()*ITEM);
+  function fling(v){stop(); let last=performance.now();
+    const f=now=>{const dt=now-last; last=now; const n=clamp(pos-v*dt), edge=n<=0||n>=max; pos=n; paint(); v*=Math.pow(0.93,dt/16);
+      if(edge||Math.abs(v)<0.04){anim=null; snap(); return;} anim=requestAnimationFrame(f);};
+    anim=requestAnimationFrame(f);}
+  let lastY=0,lastT=0,sam=[],moved=0;
+  const begin=y=>{stop(); lastY=y; lastT=performance.now(); sam=[]; moved=0;};
+  const drag=y=>{const now=performance.now(), dy=y-lastY, dt=now-lastT; pos=clamp(pos-dy); moved+=Math.abs(dy); paint();
+    if(dt>0){sam.push([dy/dt,now]); while(sam.length&&now-sam[0][1]>80) sam.shift();} lastY=y; lastT=now;};
+  const end=()=>{const v=sam.length?sam.reduce((a,b)=>a+b[0],0)/sam.length:0; if(Math.abs(v)>0.18) fling(Math.max(-1.6,Math.min(1.6,v))); else snap();};
+  wheel.addEventListener("touchstart",ev=>begin(ev.touches[0].clientY),{passive:true});
+  wheel.addEventListener("touchmove",ev=>{ev.preventDefault();drag(ev.touches[0].clientY);},{passive:false});
+  wheel.addEventListener("touchend",end); wheel.addEventListener("touchcancel",end);
+  // Maus: ziehen oder Mausrad
+  let down=false;
+  wheel.addEventListener("pointerdown",ev=>{if(ev.pointerType!=="mouse")return;down=true;wheel.setPointerCapture(ev.pointerId);begin(ev.clientY);});
+  wheel.addEventListener("pointermove",ev=>{if(down)drag(ev.clientY);});
+  wheel.addEventListener("pointerup",ev=>{if(down){down=false;end();}});
+  wheel.addEventListener("wheel",ev=>{ev.preventDefault();glide(clamp((idx()+Math.sign(ev.deltaY))*ITEM));},{passive:false});
+  // Tippen auf den Wert darüber oder darunter
+  wheel.addEventListener("click",ev=>{if(moved>6)return;const r=wheel.getBoundingClientRect(), row=Math.floor((ev.clientY-r.top)/ITEM)-1; if(row) glide(clamp((idx()+row)*ITEM));});
+  return v=>{stop(); pos=Math.max(0,vals.indexOf(v))*ITEM; paint();};
 }
-const setWind=slider("wind",-15,30,1,[[-15,"15"],[-10,""],[-7.5,"Rückenwind"],[-5,""],[0,"0"],[5,""],[10,""],[15,"15"],[20,""],[22.5,"Gegenwind"],[25,""],[30,"30"]],0);
-const setPace=slider("pace",170,450,5,[[180,"3:00"],[210,""],[240,"4:00"],[270,""],[300,"5:00"],[330,""],[360,"6:00"],[390,""],[420,"7:00"],[450,""]],null);
+const range=(a,b,st)=>{const o=[];for(let v=a;v<=b;v+=st)o.push(v);return o;};
+const setWind=makeWheel("wWind",range(-15,30,1),v=>v===0?"Windstille":Math.abs(v)+(v>0?" Gegenwind":" Rückenwind"),v=>{$("wind").value=v;ui();readout();});
+const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=v;ui();readout();});
 $("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
 
 // ---- Luftteilchen ---------------------------------------------------------
