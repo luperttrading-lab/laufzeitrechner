@@ -122,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 21</div>
+    <div class="kicker">Testversion 22</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -847,16 +847,44 @@ function drawRunnerFig(c,P,X,Y,k,col,faded){
   const leg=(L,f)=>{const mid=lerp(L.knee,L.ank,0.35);
     taper(P.hip,L.knee,0.085,0.056,dark(col.skin,f)); taper(L.knee,mid,0.056,0.06,dark(col.skin,f)); taper(mid,L.ank,0.06,0.034,dark(col.skin,f));
     shoe(L,f,col.sole,col.shoe); taper(P.hip,lerp(P.hip,L.knee,0.4),0.088,0.066,dark(col.shorts,f));};
-  const arm=(a,f)=>{taper(P.sh,a.el,0.047,0.036,dark(col.skin,f)); taper(a.el,a.ha,0.036,0.028,dark(col.skin,f));
-    c.fillStyle=dark(col.skin,f); c.beginPath(); c.arc(X(a.ha),Y(a.ha),0.04*k,0,7); c.fill();
+  // lockere Läuferfaust: abgerundeter Block in Unterarmrichtung, Fingerknöchel dunkler, Daumen oben
+  const fist=(e,h,f)=>{const [x1,y1]=pt(e),[x2,y2]=pt(h),ang=Math.atan2(y2-y1,x2-x1);
+    c.save(); c.translate(x2,y2); c.rotate(ang);
+    const up=Math.sin(ang)>0?-1:1;                 // Seite, die auf dem Bildschirm nach oben zeigt (Daumenseite)
+    const L=0.078*k, W=0.037*k, r=0.03*k;
+    c.fillStyle=dark(col.skin,f); c.beginPath();
+    c.moveTo(-0.01*k,-W); c.lineTo(L-r,-W); c.quadraticCurveTo(L,-W,L,-W+r); c.lineTo(L,W-r); c.quadraticCurveTo(L,W,L-r,W);
+    c.lineTo(-0.01*k,W); c.closePath(); c.fill();
+    c.strokeStyle=dark(col.skin,f*0.8); c.lineWidth=0.005*k; c.beginPath();               // Fingerglieder
+    for(const t of [0.45,0.7]){c.moveTo(L*t,-W*0.85*up); c.lineTo(L*t,W*0.2*up);} c.stroke();
+    c.fillStyle=dark(col.skin,f*0.93); c.beginPath(); c.ellipse(L*0.55,W*0.95*up,0.03*k,0.014*k,0.25*up,0,7); c.fill();   // Daumen
+    c.restore();};
+  const arm=(a,f)=>{taper(P.sh,a.el,0.047,0.036,dark(col.skin,f)); taper(a.el,a.ha,0.036,0.026,dark(col.skin,f));
+    fist(a.el,a.ha,f);
     taper(P.sh,lerp(P.sh,a.el,0.35),0.055,0.048,dark(col.shirt,f));};
   arm(P.armF,0.62); leg(P.B,0.62);                           // ferne Seite dunkler
   taper(P.sh,P.neck,0.05,0.045,col.skin);
   taper(P.hip,P.chest,0.1,0.12,col.shirt); taper(P.chest,P.sh,0.12,0.095,col.shirt);
   taper(P.hip,lerp(P.hip,P.chest,0.22),0.1,0.1,col.shorts);
   leg(P.A,1); arm(P.armN,1);
-  const hx=X(P.head),hy=Y(P.head); c.fillStyle=col.skin; c.beginPath(); c.arc(hx,hy,0.105*k,0,7); c.fill();
-  c.fillStyle=col.hair; c.beginPath(); c.arc(hx-0.012*k,hy-0.01*k,0.105*k,Math.PI*0.95,Math.PI*2.15); c.closePath(); c.fill();   // Haare oben und hinten
+  // Kopf im Profil, Blick in Laufrichtung. Lokale Koordinaten: u nach vorn, w nach oben, in Einheiten des Kopfradius.
+  const R=0.105*k, fwd=X([1,0])<X([0,0])?-1:1;
+  c.save(); c.translate(X(P.head),Y(P.head)); c.rotate(-fwd*P.lean*0.6); c.scale(fwd,1);
+  const path=pts=>{c.beginPath(); c.moveTo(pts[0][0]*R,-pts[0][1]*R);
+    for(let i=1;i<pts.length-1;i++){const m=[(pts[i][0]+pts[i+1][0])/2,(pts[i][1]+pts[i+1][1])/2]; c.quadraticCurveTo(pts[i][0]*R,-pts[i][1]*R,m[0]*R,-m[1]*R);}
+    const z=pts[pts.length-1]; c.lineTo(z[0]*R,-z[1]*R); c.closePath();};
+  c.fillStyle=col.skin;
+  path([[-0.45,-0.85],[-0.95,-0.35],[-0.98,0.25],[-0.6,0.85],[0.15,1.0],[0.7,0.66],[0.88,0.32],[0.86,0.14],[0.97,0.0],[1.2,-0.2],
+        [1.13,-0.27],[0.95,-0.27],[0.99,-0.38],[0.9,-0.47],[0.98,-0.55],[0.92,-0.76],[0.6,-0.92],[0.15,-0.86],[0.05,-1.05],[-0.4,-1.05]]); c.fill();
+  c.fillStyle=dark(col.skin,0.9); c.beginPath(); c.ellipse(0.62*R,-0.35*R,0.22*R,0.12*R,-0.2,0,7); c.fill();      // Wangenschatten
+  c.fillStyle=dark(col.skin,0.82); c.beginPath(); c.ellipse(-0.18*R,0.02*R,0.13*R,0.21*R,0.15,0,7); c.fill();           // Ohr
+  c.fillStyle=col.hair;                                                                                                // Haare
+  path([[0.66,0.64],[0.25,1.07],[-0.5,1.0],[-1.02,0.35],[-0.97,-0.15],[-0.78,-0.42],[-0.6,-0.2],[-0.4,0.2],[-0.12,0.3],[-0.02,0.08],[0.12,0.5],[0.5,0.56]]); c.fill();
+  c.fillStyle="#f4efe8"; c.beginPath(); c.ellipse(0.66*R,0.12*R,0.1*R,0.055*R,0,0,7); c.fill();                     // Auge
+  c.fillStyle="#1b1612"; c.beginPath(); c.arc(0.72*R,0.12*R,0.045*R,0,7); c.fill();
+  c.strokeStyle=col.hair; c.lineWidth=0.05*R; c.beginPath(); c.moveTo(0.48*R,-0.3*R); c.quadraticCurveTo(0.65*R,-0.36*R,0.82*R,-0.3*R); c.stroke();   // Augenbraue
+  c.strokeStyle=dark(col.skin,0.7); c.lineWidth=0.04*R; c.beginPath(); c.moveTo(0.84*R,0.45*R); c.lineTo(0.95*R,0.44*R); c.stroke();               // Mund
+  c.restore();
   c.restore();
 }
 
