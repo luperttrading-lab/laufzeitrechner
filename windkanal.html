@@ -420,9 +420,8 @@ function setZoom(z){
     lost=n0-pacers.length; if(lost) preset="";
     for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;}
     ema.fill(0); apply(); ui();
-  }
+  } else lost=0;
   const st=document.querySelector(".stage"), v=document.querySelector(".view");
-  else lost=0;
   if(fit){st.style.maxWidth=Math.max(150,Math.floor((v.clientHeight-78)*NX/NY))+"px"; v.scrollTop=0;} else st.style.maxWidth="";
   st.classList.toggle("tiny",fit);
   $("zOut").disabled=zoom===ZOOMS.length-1; $("zIn").disabled=zoom===0;
@@ -538,7 +537,7 @@ function readout(){
   let s=0,n=0; for(let y=Math.round(MY-B-7);y<=Math.round(MY-B-3);y++) for(let x=Math.round(MX-A);x<=Math.round(MX+A);x++){const c=y*NX+x;if(!sim.body[c]){s+=sim.uy[c];n++;}}
   const infl=n?Math.max(0,s/n/PAR.U):1;
   const st=$("status"); st.className="status";
-  if(fieldMsg>0){fieldMsg--; st.textContent=lost?lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt.":"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
+  if(fieldMsg>0){fieldMsg--; st.textContent=lost?(lost===1?"1 Pacer lag außerhalb des kleinen Felds und ist entfernt.":lost+" Pacer lagen außerhalb des kleinen Felds und sind entfernt."):"Feld "+SIZES[sizeIx].txt+(ZOOMS[zoom][1]?", ganz sichtbar":"")+" · bis zu "+MAXP+" Pacer";
     if(lost) st.className="status warn"; var keepMsg=true;}
   if(vortex){
     const k=kept!==null, Fs=KD*Math.pow(Math.max(0,rel)/3.6,2);
