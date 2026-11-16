@@ -122,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 19</div>
+    <div class="kicker">Testversion 20</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -370,58 +370,117 @@ let grid=1, showAir=true, cssScale=0.47, topPx=130;   // Raster: 0 aus, 1 Meter,
 let vortex=false, kept=null, road=false;   // road = Sicht von der Straße aus: die Luft steht, die Läufer reißen sie mit               // kept = letzter Messwert für die aktuelle Aufstellung
 let F0=0.09034818107883136;                       // Widerstand allein, im selben Modell vorab berechnet
 let SETTLE=3000;                     // Schritte, bis sich die Strömung beruhigt hat
-let sim=createSim(NX,NY,PAR);
+// Spiegel der Draufsicht-Rechnung: Die Rechnung selbst läuft in einem Web Worker, hier liegen nur die zuletzt gemeldeten Felder.
+let sim={ux:new Float32Array(NX*NY),uy:new Float32Array(NX*NY).fill(PAR.U),body:new Uint8Array(NX*NY)};
 const me={x:MX,y:MY,a:A,b:B};
 const MAXP=10;                         // höchstens zehn Pacemaker
-let pacers=[], sel=-1, since=0, paused=false, preset="f1";
-// ---- Messung: erst grob, dann fein ----------------------------------------
+let pacers=[], sel=-1, paused=false, preset="f1";
+// ---- Messung im Web Worker: erst grob, dann fein --------------------------
 // Grob: halbe Auflösung (6 cm). Ein Viertel der Zellen und halb so viele Schritte: nach etwa einer Sekunde steht
 // eine erste Schätzung, und das grobe Feld dient als Startfeld der feinen Rechnung.
-// Fein: Mittelwerte über Blöcke von je 100 Schritten. Fertig, wenn die letzten vier Blöcke höchstens 0,4 Punkte auseinanderliegen.
-const PARC={U:0.1,nu:0.004,cs:0.16,lam:0.0008,mu:0.4};
-let simC=null, F0c=0.04675140631198883;
-const M={phase:"coarse",n:0,blk:0,sum:new Float64Array(16),rel:new Float64Array(16).fill(1),hist:[],spread:null,shown:false,done:false,coarse:null,rn:0,idle:false};
-function startMeasure(){
-  if(!simC||simC.NX!==NX/2){simC=createSim(NX/2,NY/2,PARC); F0c=sizeIx?0.0467630607932806:0.04675140631198883;}
-  simC.setBodies([me].concat(pacers).map(q=>({x:q.x/2,y:q.y/2,a:q.a/2,b:q.b/2})));
-  Object.assign(M,{phase:"coarse",n:0,blk:0,hist:[],spread:null,shown:false,done:false,coarse:null,rn:0,idle:false}); M.sum.fill(0);
-}
-function blockDone(nb,F,b){for(let i=1;i<=nb;i++){M.rel[i]=M.sum[i]/b/F; M.sum[i]=0; if(M.phase==="fine"){(hist4[i]=hist4[i]||[]).push(M.rel[i]); if(hist4[i].length>10) hist4[i].shift();}} M.blk=0; M.hist.push(100*(1-M.rel[1]));
-  const h=M.hist, L=h.length;
-  if(M.phase==="fine"||(L>=3&&Math.abs(h[L-1]-h[L-2])<2&&Math.abs(h[L-2]-h[L-3])<2)) M.shown=true;   // vorher nur Anlaufschwankung
-}
-// Blockwerte je Läufer (höchstens zehn). Fertig: Mittel der letzten vier. Danach rechnet die App mit wenig Last weiter
-// und mittelt über bis zu zehn Blöcke, bis diese höchstens 0,1 Punkte auseinanderliegen oder 6000 Schritte erreicht sind.
-const hist4=[];
-function meanB(nb,k){for(let i=1;i<=nb;i++){const a=(hist4[i]||[]).slice(-k); if(a.length) M.rel[i]=a.reduce((x,y)=>x+y,0)/a.length;}}
-function toFine(){                       // feines Startfeld aus dem groben hochrechnen
-  const U2=new Float32Array(NX*NY), V2=new Float32Array(NX*NY), cx=NX/2;
-  for(let y=0;y<NY;y++) for(let x=0;x<NX;x++){const k=(y>>1)*cx+(x>>1); U2[y*NX+x]=simC.ux[k]; V2[y*NX+x]=simC.uy[k];}
-  sim.init(U2,V2); M.coarse=100*(1-M.rel[1]);
-  Object.assign(M,{phase:"fine",n:0,blk:0,hist:[],spread:null}); M.sum.fill(0); since=0; hist4.length=0;
-}
-function measureStep(budget){            // rechnet bis zum Zeitbudget, liefert die Zahl der feinen Schritte
-  const t0=performance.now(), nb=pacers.length+1; let fs=0;
-  while(!M.idle&&performance.now()-t0<budget){
-    if(M.phase==="coarse"){
-      simC.step(); M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=simC.fy[i];
-      if(++M.blk===50){blockDone(nb,F0c,50); const h=M.hist, L=h.length;
-        if((M.n>=400&&L>=3&&Math.abs(h[L-1]-h[L-2])<0.5&&Math.abs(h[L-2]-h[L-3])<0.5)||M.n>=1600) toFine();}
-    } else {
-      sim.step(); since++; fs++; M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=sim.fy[i];
-      if(++M.blk===100){blockDone(nb,F0,100); const h=M.hist, L=h.length;
-        if(!M.done){
-          if(L>=4){const w=h.slice(-4); M.spread=Math.max(...w)-Math.min(...w);}
-          if((L>=5&&M.spread<=0.4)||M.n>=4000){M.done=true; meanB(nb,4);}
-        } else {                                   // Nachlauf mit wenig Last: Mittel über bis zu zehn Blöcke
-          M.rn+=100; meanB(nb,10); const w=h.slice(-10);
-          if((w.length===10&&Math.max(...w)-Math.min(...w)<=0.1)||M.rn>=6000) M.idle=true;
-        }}
-    }
+// Fein: Mittelwerte über Blöcke von je 100 Schritten. Fertig, wenn die letzten vier Blöcke höchstens 0,4 Punkte
+// auseinanderliegen. Danach mit wenig Last weiter, bis zehn Blöcke höchstens 0,1 Punkte auseinanderliegen.
+// Der Worker rechnet neben der Anzeige her. Gibt es keinen Worker, läuft derselbe Code verlangsamt im Hauptprogramm.
+function topWorker(self,createSim,REAL){
+  const PARC={U:0.1,nu:0.004,cs:0.16,lam:0.0008,mu:0.4}, CAL={nu:0.008,lam:0.0004,mu:0.2}, VOR={nu:0.004,lam:0,mu:0};
+  const PAR={U:0.1,cs:0.16,nu:0.008,lam:0.0004,mu:0.2};
+  let NX=0,NY=0,F0=1,F0c=1,sim=null,simC=null,list=[],vortex=false,paused=false,steps=0,dirty=true,lastSend=0,id=0;
+  const M={phase:"coarse",n:0,blk:0,sum:new Float64Array(16),rel:new Float64Array(16).fill(1),hist:[],spread:null,shown:false,done:false,rn:0,idle:false};
+  const hist4=[];
+  function startMeasure(){
+    simC.setBodies(list.map(q=>({x:q.x/2,y:q.y/2,a:q.a/2,b:q.b/2})));
+    Object.assign(M,{phase:"coarse",n:0,blk:0,hist:[],spread:null,shown:false,done:false,rn:0,idle:false}); M.sum.fill(0); M.rel.fill(1);
   }
-  if(sim.fy[1]!==sim.fy[1]||simC.fy[1]!==simC.fy[1]){sim.reset(); simC.reset(); place();}   // Rechnung entgleist: neu starten
-  return fs;
+  function blockDone(nb,F,b){
+    for(let i=1;i<=nb;i++){M.rel[i]=M.sum[i]/b/F; M.sum[i]=0; if(M.phase==="fine"){(hist4[i]=hist4[i]||[]).push(M.rel[i]); if(hist4[i].length>10) hist4[i].shift();}}
+    M.blk=0; M.hist.push(100*(1-M.rel[1])); const h=M.hist, L=h.length;
+    if(M.phase==="fine"||(L>=3&&Math.abs(h[L-1]-h[L-2])<2&&Math.abs(h[L-2]-h[L-3])<2)) M.shown=true;   // vorher nur Anlaufschwankung
+  }
+  function meanB(nb,k){for(let i=1;i<=nb;i++){const a=(hist4[i]||[]).slice(-k); if(a.length) M.rel[i]=a.reduce((x,y)=>x+y,0)/a.length;}}
+  function toFine(){                     // feines Startfeld aus dem groben hochrechnen
+    const U2=new Float32Array(NX*NY), V2=new Float32Array(NX*NY), cx=NX/2;
+    for(let y=0;y<NY;y++) for(let x=0;x<NX;x++){const k=(y>>1)*cx+(x>>1); U2[y*NX+x]=simC.ux[k]; V2[y*NX+x]=simC.uy[k];}
+    sim.init(U2,V2); Object.assign(M,{phase:"fine",n:0,blk:0,hist:[],spread:null}); M.sum.fill(0); hist4.length=0;
+  }
+  function work(budget){
+    const t0=performance.now(), nb=list.length;
+    while(performance.now()-t0<budget){
+      if(vortex){sim.step(); steps++; continue;}
+      if(M.idle) break;
+      if(M.phase==="coarse"){
+        simC.step(); M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=simC.fy[i];
+        if(++M.blk===50){blockDone(nb,F0c,50); const h=M.hist, L=h.length;
+          if((M.n>=400&&L>=3&&Math.abs(h[L-1]-h[L-2])<0.5&&Math.abs(h[L-2]-h[L-3])<0.5)||M.n>=1600) toFine();}
+      } else {
+        sim.step(); steps++; M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=sim.fy[i];
+        if(++M.blk===100){blockDone(nb,F0,100); const h=M.hist, L=h.length;
+          if(!M.done){
+            if(L>=4){const w=h.slice(-4); M.spread=Math.max(...w)-Math.min(...w);}
+            if((L>=5&&M.spread<=0.4)||M.n>=4000){M.done=true; meanB(nb,4);}
+          } else {                       // Nachlauf mit wenig Last: Mittel über bis zu zehn Blöcke
+            M.rn+=100; meanB(nb,10); const w=h.slice(-10);
+            if((w.length===10&&Math.max(...w)-Math.min(...w)<=0.1)||M.rn>=6000) M.idle=true;
+          }}
+      }
+    }
+    if(sim.fy[1]!==sim.fy[1]||simC.fy[1]!==simC.fy[1]){sim.reset(); simC.reset(); place();}   // Rechnung entgleist: neu starten
+  }
+  // Im Wirbelmodus stehen alle Körper 1 cm versetzt: die kleine Unsymmetrie stößt die Wirbelablösung an.
+  function place(){
+    sim.setBodies(list.map(q=>vortex?{x:q.x+0.37,y:q.y,a:q.a,b:q.b}:q)); if(!vortex) startMeasure(); dirty=true;
+    self.postMessage({type:"body",id,body:sim.body.slice()});
+  }
+  self.onmessage=e=>{const d=e.data; if(d.id!==undefined) id=d.id;
+    if(d.cmd==="setup"){NX=d.NX; NY=d.NY; F0=d.F0; F0c=d.F0c; sim=createSim(NX,NY,PAR); simC=createSim(NX/2,NY/2,PARC); list=d.list; place();}
+    else if(d.cmd==="bodies"){list=d.list; place();}
+    else if(d.cmd==="vortex"){vortex=d.on; Object.assign(PAR,vortex?VOR:CAL); if(!vortex) sim.reset(); place();}
+    else if(d.cmd==="pause") paused=d.on;
+  };
+  function send(){
+    const st={id,NX,phase:M.phase,shown:M.shown,done:M.done,idle:M.idle,rel:Array.from(M.rel),spread:M.spread,n:M.n,rn:M.rn,steps};
+    const ux=sim.ux.slice(), uy=sim.uy.slice();
+    if(REAL) self.postMessage({type:"state",id,st,ux,uy},[ux.buffer,uy.buffer]); else self.postMessage({type:"state",id,st,ux,uy});
+  }
+  function tick(){
+    let sleep=50;
+    if(sim&&!paused){
+      let budget=0;
+      if(vortex){budget=REAL?12:8; sleep=4;}
+      else if(!M.done){budget=REAL?30:10; sleep=REAL?0:6;}   // messen: im Worker fast ohne Pause
+      else if(!M.idle){budget=3; sleep=13;}                  // Nachlauf mit wenig Last
+      if(budget){work(budget); dirty=true;}
+      const now=Date.now(); if(dirty&&now-lastSend>=33){send(); lastSend=now; dirty=false;}
+      if(dirty&&sleep>40) sleep=40;
+    }
+    setTimeout(tick,sleep);
+  }
+  tick();
 }
+
+// Spiegel des Messzustands im Hauptprogramm
+const M={phase:"coarse",shown:false,done:false,idle:false,rel:new Array(16).fill(1),spread:null,n:0,rn:0};
+let cfgId=0, wSteps=0, wSeen=0, kAvg=8, worker=null, workerReal=false;
+function resetMirror(){Object.assign(M,{phase:"coarse",shown:false,done:false,idle:false,spread:null,n:0,rn:0}); M.rel.fill(1);}
+function onWorker(e){const d=e.data; if(d.id!==cfgId) return;      // veraltete Meldung zu einer früheren Aufstellung
+  if(d.type==="state"){if(d.st.NX!==NX) return; Object.assign(M,d.st); sim.ux=d.ux; sim.uy=d.uy; wSteps=d.st.steps;}
+  else if(d.type==="body"){if(d.body.length===NX*NY) sim.body=d.body;}
+}
+function localWorker(){                    // Ersatz ohne Worker: derselbe Code, zeitversetzt im Hauptprogramm
+  const inner={postMessage:d=>setTimeout(()=>onWorker({data:d}),0),onmessage:null};
+  topWorker(inner,createSim,false);
+  return {postMessage:d=>setTimeout(()=>inner.onmessage({data:d}),0)};
+}
+let lastSetup=null;
+function post(d){worker.postMessage(d);}
+try{
+  const src=createSim.toString()+"\n("+topWorker.toString()+")(self,createSim,true);";
+  worker=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
+  worker.onmessage=onWorker; workerReal=true;
+  worker.onerror=()=>{ if(!workerReal) return; workerReal=false; worker=localWorker(); if(lastSetup) post(lastSetup); post({cmd:"bodies",id:cfgId,list:bodyList()}); };
+}catch(err){worker=localWorker(); workerReal=false;}
+function bodyList(){return [me].concat(pacers).map(q=>({x:q.x,y:q.y,a:q.a,b:q.b}));}
+function sendSetup(){lastSetup={cmd:"setup",id:++cfgId,NX,NY,F0,F0c:sizeIx?0.0467630607932806:0.04675140631198883,list:bodyList()}; resetMirror(); post(lastSetup);}
+document.addEventListener("visibilitychange",()=>post({cmd:"pause",on:paused||document.hidden}));
 
 // vor = Meter vor dir, seit = Meter nach rechts
 const mk=(vor,seit)=>({x:MX+seit/DX,y:MY-vor/DX,a:A,b:B});
@@ -451,8 +510,7 @@ function ratio(T){T=Math.min(300,Math.max(120,T));for(let i=0;i<3;i++){const [a,
 const $=id=>document.getElementById(id);
 const de=(x,n)=>x.toFixed(n).replace(".",",");
 const mmss=s=>{s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
-// Im Wirbelmodus stehen alle Körper 1 cm versetzt: die kleine Unsymmetrie stößt die Wirbelablösung an.
-function place(){sim.setBodies([me].concat(pacers).map(q=>vortex?{x:q.x+0.37,y:q.y,a:q.a,b:q.b}:q)); since=0; if(!vortex) startMeasure();}
+function place(){resetMirror(); post({cmd:"bodies",id:++cfgId,list:bodyList()});}
 function apply(){kept=null; place();}
 function loadPreset(k){const P=PRESETS.find(p=>p.k===k);
   if(P.big&&sizeIx===0){pacers=[]; setZoom(1); fieldMsg=0;}   // Formation passt nur ins große Feld
@@ -534,12 +592,11 @@ function nudge(dx,dy,btn){const q=pacers[sel];if(!q)return;const n={x:dx?snap(q.
 $("nU").onclick=()=>nudge(0,-1,$("nU")); $("nD").onclick=()=>nudge(0,1,$("nD")); $("nL").onclick=()=>nudge(-1,0,$("nL")); $("nR").onclick=()=>nudge(1,0,$("nR"));
 $("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.length?"":"solo";apply();ui();};
 $("clr").onclick=()=>loadPreset("solo");
-$("pause").onclick=()=>{paused=!paused;$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"▶":"❚❚";$("pause").setAttribute("aria-label",paused?"Weiter":"Pause");};
+$("pause").onclick=()=>{paused=!paused; post({cmd:"pause",on:paused||document.hidden});$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"▶":"❚❚";$("pause").setAttribute("aria-label",paused?"Weiter":"Pause");};
 $("vor").onclick=()=>{
   if(!vortex&&M.done) kept=1-M.rel[1];
-  vortex=!vortex; Object.assign(PAR,vortex?VOR:CAL); $("vor").setAttribute("aria-pressed",String(vortex));
-  if(!vortex) sim.reset();   // sauber neu einschwingen, sonst misst der Messmodus in die Restwirbel hinein
-  place(); readout();};
+  vortex=!vortex; $("vor").setAttribute("aria-pressed",String(vortex));
+  resetMirror(); post({cmd:"vortex",id:++cfgId,on:vortex}); readout();};   // der Worker schwingt beim Zurückschalten sauber neu ein
 function setView(r){road=r; $("vTunnel").setAttribute("aria-pressed",String(!r)); $("vRoad").setAttribute("aria-pressed",String(r));
   const L=r?[["#6eebd7","läuft mit dir mit"],["#aab8c8","ruhende Luft"],["#ffb060","strömt nach hinten"]]
            :[["#6fa8dc","langsame Luft"],["#e6eef6","ungestörter Fahrtwind"],["#ffb060","schneller als der Fahrtwind"]];
@@ -563,13 +620,13 @@ function setZoom(z){
   if(si!==sizeIx){
     const rel=pacers.map(q=>[(MY-q.y)*DX,(q.x-MX)*DX]), Z=SIZES[si]; sizeIx=si;
     NX=Z.NX; NY=Z.NY; MX=NX/2; MY=Z.MY; F0=Z.F0; SETTLE=Z.settle; NP=Z.np;
-    sim=createSim(NX,NY,PAR); me.x=MX; me.y=MY;
+    sim={ux:new Float32Array(NX*NY),uy:new Float32Array(NX*NY).fill(PAR.U),body:new Uint8Array(NX*NY)}; me.x=MX; me.y=MY;
     cv.width=NX*S; cv.height=NY*S; img=new ImageData(NX,NY); off.width=NX; off.height=NY;
     const n0=rel.length;
     pacers=rel.map(r=>mk(r[0],r[1])).filter(q=>q.x>=A+1&&q.x<=NX-A-2&&q.y>=B+14&&q.y<=NY-B-16); sel=-1;
     lost=n0-pacers.length; if(lost) preset="";
     for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;}
-    apply(); ui();
+    sendSetup(); apply(); ui();
   } else lost=0;
   const st=document.querySelector(".stage"), v=document.querySelector(".view");
   if(fit){st.style.maxWidth=Math.max(150,Math.floor((v.clientHeight-78)*NX/NY))+"px"; v.scrollTop=0;} else st.style.maxWidth="";
@@ -907,12 +964,9 @@ let frame=0;
 function loop(){
   let steps=0;
   if(!paused&&!document.hidden){
-    if(vortex&&!sideView){                                     // Wirbelmodus: nur das Bild, keine Messung
-      const t0=performance.now();
-      do{sim.step(); steps++; since++;}while(steps<14&&performance.now()-t0<11);
-      if(sim.fy[1]!==sim.fy[1]){sim.reset(); place();}
-    } else if(!M.done) steps=measureStep(sideView?6:24);       // beim Messen mehr Zeit fürs Rechnen; in der Seitenansicht nur nebenher
-    else {if(!M.idle) measureStep(sideView?1.5:3); steps=8;}    // fertig: mit wenig Last weiter verfeinern, Teilchen laufen gleichmäßig
+    // Gerechnet wird im Worker. Im Wirbelmodus folgen die Teilchen dem Fortschritt der Rechnung, sonst laufen sie gleichmäßig.
+    if(vortex){kAvg+=0.15*(Math.min(40,wSteps-wSeen)-kAvg); steps=Math.max(1,kAvg);} else steps=8;
+    wSeen=wSteps;
     const rel=3600/(+$("pace").value)+(+$("wind").value);
     // Im Messmodus laufen die Teilchen immer gleich schnell, egal wie viele Rechenschritte das Gerät gerade schafft.
     if(sideView) drawSide(sideStep());
@@ -922,7 +976,7 @@ function loop(){
   }
   requestAnimationFrame(loop);
 }
-loadPreset("f1"); setWind(0); setPace(240); setView(false); loop();
+sendSetup(); loadPreset("f1"); setWind(0); setPace(240); setView(false); loop();
 </script>
 </body>
 </html>
