@@ -119,7 +119,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 15</div>
+    <div class="kicker">Testversion 16</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -150,8 +150,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>Nach jeder Änderung an der Aufstellung braucht die Strömung einige Sekunden, bis sie sich eingependelt hat. So lange steht „Berechnung läuft“ da, der goldene Balken am oberen Bildrand füllt sich, die Zahlen erscheinen erst im letzten Drittel und sind bis zum Ende vorläufig. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
       <dt>Mindestabstand</dt>
       <dd>Wie dicht ein Pacer an dich oder einen anderen Läufer heran darf, hängt vom seitlichen Versatz ab (Mitte zu Mitte):
-        <span style="display:block;margin-top:4px">unter 30 cm seitlich: mindestens 1,0 m längs<br>30 bis 50 cm: mindestens 0,6 m<br>50 bis 60 cm: mindestens 0,4 m<br>ab 60 cm: nebeneinander möglich</span>
-        Die 1 m direkt hintereinander nennt Pugh (1970) als natürliche Grenze. Die Stufen dazwischen sind eigene Annahmen: Ab etwa 30 cm laufen die Füße nicht mehr in einer Spur, aber Schultern und Arme stoßen noch zusammen.</dd>
+        <span style="display:block;margin-top:4px">unter 25 cm seitlich: mindestens 1,0 m längs<br>25 bis 45 cm: mindestens 0,5 m<br>45 bis 60 cm: mindestens 0,3 m<br>ab 60 cm: nebeneinander möglich</span>
+        Die 1 m direkt hintereinander nennt Pugh (1970) als natürliche Grenze. Im Drohnenvideo der INEOS 1:59 Challenge liefen Kipchoge und der Pacer vor ihm sogar 1,4 m auseinander, weil die Füße bei diesem Tempo weit nach vorn und hinten schwingen. Seitlich um 28 bis 31 cm versetzt liefen die Pacer dort nur 0,53 m hintereinander. Die Stufe 45 bis 60 cm ist eine eigene Annahme.</dd>
       <dt>Gefühlter Wind</dt>
       <dd>So stark müsste der Fahrtwind im Alleinlauf sein, damit dich dieselbe Kraft bremst wie jetzt. Die Kraft wächst mit dem Quadrat des Winds, deshalb gilt: gefühlter Wind = Fahrtwind × Wurzel aus dem Rest-Widerstand. Beispiel: 70 % weniger Widerstand lässt 30 % übrig, die Wurzel daraus ist 0,55, bei 15 km/h sind das 8,2 km/h. Läufst du allein, steht dort dein voller Fahrtwind.</dd>
       <dt>Sekunden pro Kilometer</dt>
@@ -361,7 +361,11 @@ const PRESETS=[
   {k:"f4",t:"vorn + seitlich",p:[[1.2,0],[0,-0.7],[0,0.7]],ref:33.4,src:"Schickhofer & Hanson"},
   {k:"side",t:"nur seitlich",p:[[0,-0.7],[0,0.7]]},
   {k:"row3",t:"Dreierreihe",p:[[1.3,-0.75],[1.3,0],[1.3,0.75]],ref:57.3,src:"Polidori et al."},
-  {k:"chain5",t:"Fünferkette",p:[[1.2,0],[-1.2,0],[-2.4,0],[-3.6,0]],ref:63.3,src:"Beaumont et al."}
+  {k:"chain5",t:"Fünferkette",p:[[1.2,0],[-1.2,0],[-2.4,0],[-3.6,0]],ref:63.3,src:"Beaumont et al."},
+  // Rumpfmitten im Drohnenvideo der INEOS 1:59 Challenge gemessen (Wien 2019, Mittel aus zwei Einzelbildern).
+  // Braucht das große Feld, weil die vordersten Pacer 2,7 m vor dir laufen.
+  {k:"ineos",t:"INEOS-V",big:true,p:[[1.42,-0.05],[2.14,0.30],[2.67,0.61],[2.09,-0.47],[2.63,-0.75],[-2.20,0.23],[-2.16,-0.47]],
+   note:"Gemessen im Drohnenvideo der INEOS 1:59 Challenge, Wien 2019."}
 ];
 const VALID=[["1 Pacer vorn, 1,2 m", 70.1, 70.2, "geeicht"], ["Pacer vorn + zwei seitlich", 33.4, 34.1, "geeicht"], ["Pacer vorn + hinten", 75.6, 77.9, "Test"], ["2 Pacer vorn mit Lücke", 41.3, 37.8, "Test"], ["1 Pacer vorn, 1,0 m", 76.0, 74.4, "Test"], ["1 Pacer vorn, 1,5 m", 63.2, 64.6, "Test"], ["Dreierreihe vorn, 1,3 m (andere Arbeitsgruppe)", 57.3, 66.2, "Test"], ["Fünferkette, Position 2 (andere Arbeitsgruppe)", 63.3, 78.4, "Test"]];
 
@@ -378,10 +382,13 @@ const mmss=s=>{s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart
 // Im Wirbelmodus stehen alle Körper 1 cm versetzt: die kleine Unsymmetrie stößt die Wirbelablösung an.
 function place(){sim.setBodies([me].concat(pacers).map(q=>vortex?{x:q.x+0.37,y:q.y,a:q.a,b:q.b}:q)); since=0;}
 function apply(){kept=null; place();}
-function loadPreset(k){const P=PRESETS.find(p=>p.k===k); preset=k; pacers=P.p.map(q=>mk(q[0],q[1])); sel=-1; apply(); ui();}
+function loadPreset(k){const P=PRESETS.find(p=>p.k===k);
+  if(P.big&&sizeIx===0){pacers=[]; setZoom(1); fieldMsg=0;}   // Formation passt nur ins große Feld
+  preset=k; pacers=P.p.map(q=>mk(q[0],q[1])); sel=-1; apply(); ui();}
 // Mindestabstand längs (Mitte zu Mitte) je nach seitlichem Versatz.
-// Unter 30 cm laufen die Füße in einer Spur: 1 m nach Pugh 1970. Die Stufen dazwischen sind eigene Annahmen.
-const GAPS=[[0.3,1.0],[0.5,0.6],[0.6,0.4]];
+// Unter 25 cm laufen die Füße in einer Spur: 1 m nach Pugh 1970. Die Stufe 25–45 cm stützt sich auf die INEOS-Formation
+// (dort 0,53 m längs bei 0,28 bis 0,31 m seitlich), die Stufe 45–60 cm ist eine eigene Annahme.
+const GAPS=[[0.25,1.0],[0.45,0.5],[0.6,0.3]];
 const minGap=w=>{for(const [lim,g] of GAPS) if(w<lim) return g; return 0;};
 const cm=v=>Math.round(v*100);
 // Liefert null, wenn q frei ist, sonst den Grund. skip = Index des Pacers, der gerade bewegt wird (−1 für einen neuen).
@@ -662,6 +669,7 @@ function readout(){
   $("result").textContent=since<0.6*SETTLE?"Berechnung läuft …"
     :(settling?"Berechnung läuft … vorläufig ":"")+(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
   if(!keepMsg) st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
+    :P.note?P.note
     :P.ref?"Studienwert: "+de(P.ref,1)+" % weniger ("+P.src+")"
     :P.k==="solo"?"Ohne Pacer. Das ist der Bezugswert.":"Für diese Aufstellung gibt es keinen Studienwert.";
 }
