@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Windkanal für Läufer</title>
 <style>
-/* Layout: Windkanal als hohe Bühne, Messwert darüber gelegt, Bedienung und Modellprüfung darunter. */
+/* Layout: oben scrollt der Windkanal mit Erklärungen, unten steht die Bedienleiste fest. */
 :root{
   --paper:#f7f3e9; --card:#fffdf8; --ink:#142d49; --text2:#33495d; --muted:#617080;
   --gold:#a8721a; --line:#d9d1c2; --tile:#e9eef2; --hl-bg:#f8edcf; --note-bg:#f5f0e4; --link:#174d78;
@@ -28,126 +28,154 @@
   --ok:#7fd3a6; --ok-bg:#173527; --warn:#f0c269; --warn-bg:#3a2e12;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.45 var(--body);font-variant-numeric:tabular-nums}
-main{max-width:980px;margin:auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:16px}
-header{border-bottom:2px solid var(--gold);padding:4px 0 14px}
-.kicker{font-size:.76rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:800}
-h1{font:700 clamp(1.7rem,5vw,2.6rem)/1.05 var(--display);margin:6px 0;text-wrap:balance}
-.lead{max-width:65ch;color:var(--text2);margin:0}
-h2{font:700 1.25rem var(--display);margin:0 0 10px;text-wrap:balance}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font:16px/1.45 var(--body);font-variant-numeric:tabular-nums}
+.app{height:100%;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.inner{max-width:560px;margin:auto;padding:12px 16px 24px;display:flex;flex-direction:column;gap:14px}
+.kicker{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:800}
+h1{font:700 1.5rem/1.1 var(--display);margin:2px 0 0;text-wrap:balance}
+h2{font:700 1.2rem var(--display);margin:0 0 10px;text-wrap:balance}
 p{margin:0 0 10px;max-width:70ch}
 .small{font-size:.83rem;color:var(--muted)}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-.lab{display:grid;grid-template-columns:minmax(0,400px) 1fr;gap:16px;align-items:start}
-.stage{position:relative;border-radius:14px;overflow:hidden;background:#0a1320;line-height:0}
+.stage{position:relative;border-radius:14px;overflow:hidden;background:#0a1320;line-height:0;max-width:420px;width:100%;margin:auto}
 canvas{width:100%;height:auto;display:block}
 .hud{position:absolute;left:6px;top:6px;right:6px;display:flex;justify-content:space-between;gap:6px;pointer-events:none;line-height:1.2}
 .hud div{background:rgba(10,19,32,.82);border-radius:9px;padding:4px 9px 5px;color:#e8edf3;white-space:nowrap}
 .hud b{display:block;font:700 1.12rem var(--display)}
 .hud span{font-size:.66rem;color:#aab8c8}
-.side{display:flex;flex-direction:column;gap:12px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-button{font:600 .86rem var(--body);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer}
-button[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.dock{flex:none;background:var(--card);border-top:1px solid var(--line);padding:7px 12px 10px}
+.dockin{max-width:560px;margin:auto}
+.result{font-size:.86rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
+.status.warn{color:var(--warn);font-weight:700}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px}
+button{font:600 .84rem var(--body);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;white-space:nowrap}
+button[aria-pressed="true"],button[aria-selected="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
 button:disabled{opacity:.4;cursor:default}
-button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
-.pad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,40px);gap:5px}
-.pad button{padding:0;font-size:1.05rem}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.note{border-left:4px solid var(--gold);padding:10px 12px;background:var(--note-bg);color:var(--text2);border-radius:0 8px 8px 0}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.pane{height:94px;padding-top:8px}
+.pane[hidden]{display:none}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px}
+.chips button{flex:none}
+.row{display:flex;gap:6px;align-items:center}
+.row .sq{width:42px;height:38px;padding:0;font-size:1rem;flex:none}
+.sl{display:grid;grid-template-columns:1fr;gap:0}
+.sl label{display:flex;justify-content:space-between;font-size:.8rem;font-weight:700;color:var(--text2)}
+.sl label span{font-weight:400;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--gold);margin:0;height:26px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--text2)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
 .scroll{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.88rem}
-th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
-td.num,th.num{text-align:right}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th,td{text-align:left;padding:7px 5px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+td.num,th.num{text-align:right;white-space:nowrap}
 .pill{display:inline-block;border-radius:99px;padding:2px 8px;font-size:.72rem;font-weight:700;white-space:nowrap}
 .pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)}
 ul{margin:0;padding-left:20px} li{margin:6px 0;max-width:70ch}
-a{color:var(--link)}
-@media(max-width:760px){.lab{grid-template-columns:1fr}}
+dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);max-width:70ch}
 </style>
 </head>
 <body>
-<main>
-<header>
-  <div class="kicker">Windschatten · Strömungsmodell · Testversion</div>
-  <h1>Windkanal für Läufer</h1>
-  <p class="lead">Setze Pacer um dich herum und sieh zu, wie sich die Luft verteilt. Der Widerstand auf jeden Läufer wird aus der Strömung berechnet.</p>
-</header>
+<div class="app">
+<div class="view">
+<div class="inner">
+  <header>
+    <div class="kicker">Testversion</div>
+    <h1>Windkanal für Läufer</h1>
+  </header>
 
-<div class="lab">
   <div class="stage">
     <canvas id="cv" width="768" height="1440" aria-label="Draufsicht auf die Läufer im Luftstrom"></canvas>
     <div class="hud">
       <div><b id="drag">–</b><span id="dragSub">Widerstand</span></div>
-      <div><b id="inflow">–</b><span>Anströmung vor dir</span></div>
+      <div><b id="inflow">–</b><span id="inflowSub">Luft vor dir</span></div>
     </div>
   </div>
 
-  <div class="side">
-    <section class="panel">
-      <h2>Aufstellung</h2>
-      <div class="chips" id="presets"></div>
-      <p class="small" id="cmp" style="margin:10px 0 0"></p>
-    </section>
+  <section class="panel">
+    <div class="legend">
+      <span><i style="background:#6fa8dc"></i>langsame Luft</span>
+      <span><i style="background:#e6eef6"></i>ungestörter Fahrtwind</span>
+      <span><i style="background:#ffb060"></i>schneller als der Fahrtwind</span>
+    </div>
+    <p class="small" style="margin:8px 0 0">Jeder Strich ist ein Luftteilchen, seine Länge zeigt das Tempo. Dunkle Flächen sind ruhige Luft. Tippe auf eine freie Stelle, um einen Pacer zu setzen, und ziehe ihn mit dem Finger. Du bist der goldene Läufer.</p>
+  </section>
 
-    <section class="panel">
-      <h2>Pacer setzen</h2>
-      <p class="small">Tippe auf eine freie Stelle, um einen Pacer einzufügen. Ziehe ihn mit dem Finger. Du selbst bist der goldene Läufer und bleibst stehen.</p>
-      <div class="row">
-        <div class="pad" aria-label="Gewählten Pacer um 5 cm verschieben">
-          <span></span><button type="button" id="nU" aria-label="5 cm nach vorn">▲</button><span></span>
-          <button type="button" id="nL" aria-label="5 cm nach links">◀</button><button type="button" id="nD" aria-label="5 cm nach hinten">▼</button><button type="button" id="nR" aria-label="5 cm nach rechts">▶</button>
-        </div>
-        <div>
-          <div id="selInfo" style="font-weight:700">Kein Pacer gewählt</div>
-          <div class="small">Pfeile verschieben um 5 cm.</div>
-        </div>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button type="button" id="del">Pacer entfernen</button>
-        <button type="button" id="clr">Alle entfernen</button>
-        <button type="button" id="pause" aria-pressed="false">Pause</button>
-      </div>
-    </section>
+  <section class="panel">
+    <h2>Was die Zahlen bedeuten</h2>
+    <dl>
+      <dt>80 % weniger Widerstand</dt>
+      <dd>Die Luft bremst dich nur noch mit einem Fünftel der Kraft, die sie im Alleinlauf bei gleichem Tempo hätte. Darunter steht die Kraft in Newton. Das sind nicht 80 % weniger Anstrengung: Der Luftwiderstand macht nur wenige Prozent deines Energiebedarfs aus.</dd>
+      <dt>Luft vor dir</dt>
+      <dd>So schnell strömt die Luft direkt vor deiner Brust auf dich zu. Allein ist das dein Lauftempo plus Gegenwind. Im Windschatten bleibt davon nur ein Rest.</dd>
+      <dt>Sekunden pro Kilometer</dt>
+      <dd>So viel schneller könntest du bei gleicher Anstrengung laufen. Gerechnet nach da Silva et al. für einen 52 kg schweren Läufer. Für Marathonzeiten über 2 Stunden stützt sich die Umrechnung auf Werte, die ich nicht am Volltext prüfen konnte.</dd>
+      <dt>Tempo und Wind</dt>
+      <dd>Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
+    </dl>
+  </section>
 
-    <section class="panel">
-      <div class="legend">
-        <span><i style="background:#6fa8dc"></i>langsame Luft</span>
-        <span><i style="background:#e6eef6"></i>Lauftempo</span>
-        <span><i style="background:#ffb060"></i>schneller als Lauftempo</span>
-      </div>
-      <p class="small" style="margin:8px 0 0">Oben links steht dein Widerstand im Vergleich zum Alleinlauf, rechts das Tempo der Luft direkt vor dir. Jeder Strich ist ein Luftteilchen, seine Länge zeigt das Tempo. Dunkle Flächen sind ruhige Luft. Die Zahl an einem Pacer ist sein eigener Widerstand im Vergleich zum Alleinlauf.</p>
-    </section>
-  </div>
+  <section class="panel">
+    <h2>Wie gut trifft das Modell die Studie?</h2>
+    <p class="small">Das Modell hat zwei Stellschrauben. Beide sind an zwei Werten von Schickhofer und Hanson geeicht. Alle anderen Zeilen sind Vorhersagen, die das Modell vorher nicht kannte.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Aufstellung</th><th class="num">Studie</th><th class="num">Modell</th><th>Rolle</th></tr></thead>
+        <tbody id="valid"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Modellannahmen</h2>
+    <ul>
+      <li><strong>Zwei Dimensionen.</strong> Gerechnet wird eine waagerechte Scheibe auf Brusthöhe. Jeder Läufer ist eine Ellipse von 45 × 25 cm, ohne Arme, Beine und Bewegung.</li>
+      <li><strong>Ersatz für die dritte Dimension.</strong> In echt weicht Luft über die Köpfe aus und füllt den Windschatten von oben wieder auf. Das Modell bildet beides mit je einer Stellschraube nach.</li>
+      <li><strong>Mittelwert statt Wirbel.</strong> Hinter einem echten Läufer lösen sich ständig Wirbel ab. Das Modell zeigt nur den zeitlichen Mittelwert davon: eine ruhige, lange Zone langsamer Luft. Die einzelnen Wirbel fehlen.</li>
+      <li><strong>Prozentwert unabhängig vom Tempo.</strong> Tempo und Wind ändern im Modell die Kraft in Newton, nicht den Anteil.</li>
+      <li><strong>Geeicht, nicht unabhängig.</strong> Weil das Modell an der Studie von Schickhofer und Hanson ausgerichtet ist, kann es deren Zahlen nicht bestätigen.</li>
+    </ul>
+    <p class="small" style="margin:10px 0 0">Verfahren: Gitter-Boltzmann (D2Q9) mit Wirbelviskosität nach Smagorinsky, 128 × 240 Zellen zu je 3 cm. Widerstand aus dem Impulsübertrag der Luft an den Körperrändern.</p>
+  </section>
+</div>
 </div>
 
-<section class="panel">
-  <h2>Wie gut trifft das Modell die Studie?</h2>
-  <p class="small">Das Modell hat zwei Stellschrauben. Beide habe ich an zwei Werten von Schickhofer und Hanson geeicht. Alle anderen Zeilen sind Vorhersagen, die das Modell vorher nicht kannte.</p>
-  <div class="scroll">
-    <table>
-      <thead><tr><th>Aufstellung</th><th class="num">Studie</th><th class="num">Simulator</th><th>Rolle</th></tr></thead>
-      <tbody id="valid"></tbody>
-    </table>
+<div class="dock">
+<div class="dockin">
+  <div class="result" id="result">–</div>
+  <div class="status" id="status">–</div>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" data-t="form" aria-selected="true">Aufstellung</button>
+    <button type="button" role="tab" data-t="pacer" aria-selected="false">Pacer</button>
+    <button type="button" role="tab" data-t="wind" aria-selected="false">Tempo & Wind</button>
+    <button type="button" id="pause" aria-pressed="false" aria-label="Pause">❚❚</button>
   </div>
-</section>
-
-<section class="panel">
-  <h2>Modellannahmen</h2>
-  <ul>
-    <li><strong>Zwei Dimensionen.</strong> Gerechnet wird eine waagerechte Scheibe auf Brusthöhe. Jeder Läufer ist eine Ellipse von 45 × 25 cm, ohne Arme, Beine und Bewegung.</li>
-    <li><strong>Ersatz für die dritte Dimension.</strong> In echt weicht Luft über die Köpfe aus und füllt den Windschatten von oben wieder auf. Das Modell bildet beides mit je einer Stellschraube nach. Ohne sie käme hinter einem Pacer sogar Schub heraus und zwischen Seitenläufern ein viel zu starker Düseneffekt.</li>
-    <li><strong>Zähere Luft.</strong> Die Rechnung läuft mit einer rund tausendfach kleineren Reynolds-Zahl als echte Luft um einen Läufer. Feine Turbulenz gibt es hier nicht, die Strömung beruhigt sich nach kurzer Zeit.</li>
-    <li><strong>Tempo spielt keine Rolle.</strong> Die Prozentwerte gelten im Modell für jedes Lauftempo gleich.</li>
-    <li><strong>Geeicht, nicht unabhängig.</strong> Weil das Modell an der Studie von Schickhofer und Hanson ausgerichtet ist, kann es deren Zahlen nicht bestätigen. Es zeigt, was aus denselben Mechanismen für andere Aufstellungen folgt.</li>
-  </ul>
-</section>
-
-<footer class="small">Verfahren: Gitter-Boltzmann (D2Q9) mit Wirbelviskosität nach Smagorinsky, 128 × 240 Zellen zu je 3 cm. Widerstand aus dem Impulsübertrag der Luft an den Körperrändern.</footer>
-</main>
+  <div class="pane" id="pane-form">
+    <div class="chips" id="presets"></div>
+    <div class="small">Wische die Reihe nach links für weitere Aufstellungen.</div>
+  </div>
+  <div class="pane" id="pane-pacer" hidden>
+    <div class="row">
+      <button type="button" class="sq" id="nL" aria-label="5 cm nach links">◀</button>
+      <button type="button" class="sq" id="nU" aria-label="5 cm nach vorn">▲</button>
+      <button type="button" class="sq" id="nD" aria-label="5 cm nach hinten">▼</button>
+      <button type="button" class="sq" id="nR" aria-label="5 cm nach rechts">▶</button>
+      <button type="button" id="del">Entfernen</button>
+      <button type="button" id="clr">Alle weg</button>
+    </div>
+    <div style="font-weight:700;font-size:.86rem;margin-top:8px" id="selInfo">Kein Pacer gewählt</div>
+    <div class="small">Pfeile verschieben den gewählten Pacer um 5 cm.</div>
+  </div>
+  <div class="pane" id="pane-wind" hidden>
+    <div class="sl"><label for="pace">Lauftempo <span id="paceOut"></span></label><input type="range" id="pace" min="170" max="450" step="5" value="240"></div>
+    <div class="sl"><label for="wind">Wind <span id="windOut"></span></label><input type="range" id="wind" min="-15" max="30" step="1" value="0"></div>
+  </div>
+</div>
+</div>
+</div>
 
 <script>
 //<core>
@@ -246,36 +274,47 @@ const ema=new Float64Array(16);
 const mk=(vor,seit)=>({x:MX+seit/DX,y:MY-vor/DX,a:A,b:B});
 const PRESETS=[
   {k:"solo",t:"Allein",p:[]},
-  {k:"f1",t:"1 vorn",p:[[1.2,0]],ref:70.1,src:"Schickhofer & Hanson, Formation 1"},
-  {k:"f2",t:"vorn + hinten",p:[[1.2,0],[-1.2,0]],ref:75.6,src:"Schickhofer & Hanson, Formation 2"},
-  {k:"f3",t:"2 vorn, Lücke",p:[[1.2,-0.35],[1.2,0.35]],ref:41.3,src:"Schickhofer & Hanson, Formation 3"},
-  {k:"f4",t:"vorn + seitlich",p:[[1.2,0],[0,-0.7],[0,0.7]],ref:33.4,src:"Schickhofer & Hanson, Formation 4"},
+  {k:"f1",t:"1 vorn",p:[[1.2,0]],ref:70.1,src:"Schickhofer & Hanson"},
+  {k:"f2",t:"vorn + hinten",p:[[1.2,0],[-1.2,0]],ref:75.6,src:"Schickhofer & Hanson"},
+  {k:"f3",t:"2 vorn, Lücke",p:[[1.2,-0.35],[1.2,0.35]],ref:41.3,src:"Schickhofer & Hanson"},
+  {k:"f4",t:"vorn + seitlich",p:[[1.2,0],[0,-0.7],[0,0.7]],ref:33.4,src:"Schickhofer & Hanson"},
   {k:"side",t:"nur seitlich",p:[[0,-0.7],[0,0.7]]},
   {k:"row3",t:"Dreierreihe",p:[[1.3,-0.75],[1.3,0],[1.3,0.75]],ref:57.3,src:"Polidori et al."},
   {k:"chain5",t:"Fünferkette",p:[[1.2,0],[-1.2,0],[-2.4,0],[-3.6,0]],ref:63.3,src:"Beaumont et al."}
 ];
 const VALID=[["1 Pacer vorn, 1,2 m", 70.1, 70.2, "geeicht"], ["Pacer vorn + zwei seitlich", 33.4, 34.1, "geeicht"], ["Pacer vorn + hinten", 75.6, 77.9, "Test"], ["2 Pacer vorn mit Lücke", 41.3, 37.8, "Test"], ["1 Pacer vorn, 1,0 m", 76.0, 74.4, "Test"], ["1 Pacer vorn, 1,5 m", 63.2, 64.6, "Test"], ["Dreierreihe vorn, 1,3 m (andere Arbeitsgruppe)", 57.3, 66.2, "Test"], ["Fünferkette, Position 2 (andere Arbeitsgruppe)", 63.3, 78.4, "Test"]];
 
+// ---- Umrechnung in Kraft, Energie und Zeit (da Silva et al., 52-kg-Referenzläufer) ----
+const KD=0.2065;       // Widerstand allein in N je (m/s)²: 1,39 % von 52 kg bei 2-h-Tempo
+const BW=52*9.81, K=6.13, KM=42.195;
+const incAt=T=>K*1.39*Math.pow(120/T,2);
+const RA=[[120,222],[180,188],[240,179],[300,180]].map(([T,s])=>[T,(s/(T*60))/(0.573*incAt(T)/100)]);
+function ratio(T){T=Math.min(300,Math.max(120,T));for(let i=0;i<3;i++){const [a,ra]=RA[i],[b,rb]=RA[i+1];if(T<=b)return ra+(T-a)/(b-a)*(rb-ra);}return RA[3][1];}
+
 const $=id=>document.getElementById(id);
 const de=(x,n)=>x.toFixed(n).replace(".",",");
+const mmss=s=>{s=Math.round(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");};
 function apply(){sim.setBodies([me].concat(pacers)); since=0;}
 function loadPreset(k){const P=PRESETS.find(p=>p.k===k); preset=k; pacers=P.p.map(q=>mk(q[0],q[1])); sel=-1; apply(); ui();}
 function free(q,skip){ // true, wenn q keinen anderen Körper berührt und im Feld liegt
   if(q.x<A+1||q.x>NX-A-2||q.y<B+14||q.y>NY-B-16) return false;
   return [me].concat(pacers).every((o,i)=>i-1===skip||Math.abs(o.x-q.x)>=2*A+1||Math.abs(o.y-q.y)>=2*B+1);
 }
+function tooClose(){const all=[me].concat(pacers);
+  for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++)
+    if(Math.abs(all[i].x-all[j].x)*DX<0.3&&Math.abs(all[i].y-all[j].y)*DX<0.98) return true;
+  return false;}
 function ui(){
   document.querySelectorAll("#presets button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===preset)));
   const s=pacers[sel];
   if(s){const v=(MY-s.y)*DX, w=(s.x-MX)*DX;
     $("selInfo").textContent=de(Math.abs(v),2)+" m "+(v>=0?"vor":"hinter")+" dir, "+de(Math.abs(w),2)+" m "+(Math.abs(w)<0.005?"seitlich":w>0?"rechts":"links");}
-  else $("selInfo").textContent="Kein Pacer gewählt";
+  else $("selInfo").textContent=pacers.length?"Tippe einen Pacer an, um ihn zu wählen":"Kein Pacer im Feld";
   ["nU","nD","nL","nR","del"].forEach(id=>$(id).disabled=!s);
   $("clr").disabled=!pacers.length;
-  const P=PRESETS.find(p=>p.k===preset);
-  $("cmp").textContent=!P?"Eigene Aufstellung. Dafür gibt es keinen Studienwert."
-    :P.ref?"Studienwert für diese Aufstellung: "+de(P.ref,1)+" % weniger Widerstand ("+P.src+")."
-    :P.k==="solo"?"Ohne Pacer. Das ist der Bezugswert 100 %.":"Für diese Aufstellung gibt es keinen Studienwert.";
+  const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace;
+  $("paceOut").textContent=mmss(pace)+" min/km · "+de(v,1)+" km/h";
+  $("windOut").textContent=wind===0?"Windstille":Math.abs(wind)+" km/h "+(wind>0?"Gegenwind":"Rückenwind");
 }
 
 // ---- Bedienung ------------------------------------------------------------
@@ -292,17 +331,21 @@ cv.addEventListener("pointermove",ev=>{if(dragging<0)return;const [x,y]=cell(ev)
 const drop=()=>{dragging=-1;};
 cv.addEventListener("pointerup",drop); cv.addEventListener("pointercancel",drop);
 cv.addEventListener("click",ev=>{if(moved){moved=false;return;}const [x,y]=cell(ev);const h=hit(x,y);
-  if(h>=0){sel=h;ui();return;}
+  if(h>=0){sel=h;showTab("pacer");ui();return;}
   const n={x,y,a:A,b:B};
-  if(pacers.length<8&&free(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();ui();}});
+  if(pacers.length<8&&free(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();showTab("pacer");ui();}});
 function nudge(dx,dy){const q=pacers[sel];if(!q)return;const n={x:q.x+dx*0.05/DX,y:q.y+dy*0.05/DX,a:A,b:B};
   if(free(n,sel)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
 $("nU").onclick=()=>nudge(0,-1); $("nD").onclick=()=>nudge(0,1); $("nL").onclick=()=>nudge(-1,0); $("nR").onclick=()=>nudge(1,0);
 $("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.length?"":"solo";apply();ui();};
 $("clr").onclick=()=>loadPreset("solo");
-$("pause").onclick=()=>{paused=!paused;$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"Weiter":"Pause";};
+$("pause").onclick=()=>{paused=!paused;$("pause").setAttribute("aria-pressed",String(paused));$("pause").textContent=paused?"▶":"❚❚";$("pause").setAttribute("aria-label",paused?"Weiter":"Pause");};
+function showTab(t){document.querySelectorAll(".tabs [role=tab]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.t===t)));
+  ["form","pacer","wind"].forEach(k=>$("pane-"+k).hidden=k!==t);}
+document.querySelector(".tabs").addEventListener("click",ev=>{const b=ev.target.closest("[role=tab]");if(b)showTab(b.dataset.t);});
 $("presets").innerHTML=PRESETS.map(p=>'<button type="button" data-k="'+p.k+'" aria-pressed="false">'+p.t+'</button>').join("");
 $("presets").addEventListener("click",ev=>{const b=ev.target.closest("button");if(b)loadPreset(b.dataset.k);});
+["pace","wind"].forEach(id=>$(id).addEventListener("input",()=>{ui();readout();}));
 $("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
 
 // ---- Luftteilchen ---------------------------------------------------------
@@ -347,13 +390,31 @@ function draw(k){
   });
 }
 
-// ---- Schleife -------------------------------------------------------------
+// ---- Anzeige --------------------------------------------------------------
 function readout(){
-  const p=100*(1-ema[1]/F0), settling=since<SETTLE;
-  $("drag").textContent=since<400?"…":(p>=0?de(p,0)+" % weniger":de(-p,0)+" % mehr");
-  $("dragSub").textContent=settling?"Widerstand · misst "+Math.round(100*since/SETTLE)+" %":"Widerstand · stabil";
+  const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace, rel=v+wind;   // rel = Fahrtwind allein, km/h
+  const p=1-ema[1]/F0, settling=since<SETTLE, P=PRESETS.find(q=>q.k===preset);
   let s=0,n=0; for(let y=Math.round(MY-B-7);y<=Math.round(MY-B-3);y++) for(let x=Math.round(MX-A);x<=Math.round(MX+A);x++){const c=y*NX+x;if(!sim.body[c]){s+=sim.uy[c];n++;}}
-  $("inflow").textContent=n?de(Math.max(0,100*s/n/PAR.U),0)+" % vom Tempo":"–";
+  const infl=n?Math.max(0,s/n/PAR.U):1;
+  const st=$("status"); st.className="status";
+  if(rel<3){
+    $("drag").textContent="–"; $("dragSub").textContent="Widerstand"; $("inflow").textContent="–"; $("inflowSub").textContent="Luft vor dir";
+    $("result").textContent="Kaum Fahrtwind: Der Rückenwind ist so schnell wie du.";
+    st.textContent="Hier gilt das Modell nicht. Nimm weniger Rückenwind."; st.className="status warn"; return;
+  }
+  const Fs=KD*Math.pow(rel/3.6,2), Fn=Fs*(1-p);
+  $("drag").textContent=since<400?"…":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr");
+  $("dragSub").textContent=settling?"Widerstand · misst "+Math.round(100*since/SETTLE)+" %":"Widerstand · "+de(Fn,1)+" statt "+de(Fs,1)+" N";
+  $("inflow").textContent=de(infl*rel,1)+" km/h";
+  $("inflowSub").textContent="Luft vor dir · allein "+de(rel,1);
+  // Zeitgewinn bei gleicher Anstrengung
+  const inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*p*inc/100, en=100*p*inc/(100+inc);
+  $("result").textContent=since<400?"Strömung baut sich auf …"
+    :(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
+  if(tooClose()){st.textContent="Unter 1 m hintereinander: im Laufen kaum möglich."; st.className="status warn";}
+  else st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
+    :P.ref?"Studienwert: "+de(P.ref,1)+" % weniger ("+P.src+")"
+    :P.k==="solo"?"Ohne Pacer. Das ist der Bezugswert.":"Für diese Aufstellung gibt es keinen Studienwert.";
 }
 let frame=0;
 function loop(){
@@ -365,7 +426,8 @@ function loop(){
         const al=since<300?1/since:1/300; for(let i=1;i<=pacers.length+1;i++) ema[i]+=al*(sim.fy[i]-ema[i]);
       }while(steps<14&&performance.now()-t0<11);
     } else steps=8;   // Strömung steht: nur noch die Teilchen bewegen
-    draw(steps);
+    const rel=3600/(+$("pace").value)+(+$("wind").value);
+    draw(steps*Math.min(2.2,Math.max(0.3,rel/15)));
     if(frame++%6===0) readout();
   }
   requestAnimationFrame(loop);
