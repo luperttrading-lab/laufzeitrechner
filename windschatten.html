@@ -47,9 +47,18 @@ label{display:block;font-size:.86rem;font-weight:700;color:var(--text2);margin:1
 input[type=range]{width:100%;accent-color:var(--gold);margin:6px 0 2px;height:28px}
 input[type=range]:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .small{font-size:.83rem;color:var(--muted)}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.chip{font:600 .82rem var(--body);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:99px;padding:7px 11px;cursor:pointer}
-.chip[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.chip{display:flex;flex-direction:column;align-items:center;gap:2px;font:700 .8rem var(--body);color:var(--ink);background:var(--tile);border:2px solid transparent;border-radius:10px;padding:6px 2px 7px;cursor:pointer}
+.chip svg{width:100%;max-width:58px;height:auto}
+.chip[aria-pressed="true"]{border-color:var(--gold);background:var(--hl-bg)}
+.figrow{display:flex;gap:14px;align-items:center;margin-top:12px}
+.figrow svg{flex:none;width:112px;height:auto;background:var(--tile);border-radius:10px}
+.figrow strong{display:block;margin-bottom:3px}
+.figrow p{margin:0 0 6px;font-size:.86rem;color:var(--text2)}
+.pc{fill:var(--muted)} .me{fill:var(--gold)} .hd{stroke:var(--tile);stroke-width:1.2}
+.ghost{fill:none;stroke:var(--gold);stroke-width:1.2;stroke-dasharray:3 2}
+.dir{stroke:var(--muted);stroke-width:1.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.q{fill:var(--gold);font:700 11px var(--body)}
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .metric{background:var(--tile);border-radius:12px;padding:12px}
 .metric b{display:block;font:700 clamp(1.3rem,3vw,1.9rem) var(--display)}
@@ -104,7 +113,14 @@ footer{color:var(--muted);font-size:.8rem}
     <div class="val"><span id="dragOut">57,3 %</span></div>
     <input type="range" id="drag" min="0" max="85" step="0.1" value="57.3">
     <div class="chips" id="chips"></div>
-    <p class="small" id="presetInfo" style="margin-top:10px"></p>
+    <div class="figrow">
+      <div id="figBig"></div>
+      <div>
+        <strong id="presetName"></strong>
+        <p id="presetInfo"></p>
+        <div class="small">Draufsicht, Laufrichtung nach oben. Gold bist du, grau sind die Pacer. Schematisch.</div>
+      </div>
+    </div>
   </section>
 
   <section class="panel">
@@ -164,7 +180,7 @@ footer{color:var(--muted);font-size:.8rem}
         <tr><td>57,3 % und 63,3 % weniger Widerstand</td><td><span class="pill ok">bestätigt</span></td><td>Polidori et al. (38,5 bis 57,3 % je nach Position) und Beaumont et al. (Position 2 von 5).</td></tr>
         <tr><td>Anteile 3,6 / 2,1 / 1,3 % bei 3 / 4 / 5 h</td><td><span class="pill ok">nachgerechnet</span></td><td>Ergibt sich exakt, wenn man den 52-kg-Körper langsamer laufen lässt. Ein eigenes Freizeitläufer-Modell ist das nicht.</td></tr>
         <tr><td>Zeitvorteile 3:08 / 2:59 / 3:00 min bei 3 / 4 / 5 h</td><td><span class="pill warn">nicht prüfbar</span></td><td>Stehen in keinem frei zugänglichen Text. Der Volltext liegt hinter einer Bezahlschranke.</td></tr>
-        <tr><td>Formationen 72,2 % und 76,0 %</td><td><span class="pill warn">nicht prüfbar</span></td><td>Schickhofer und Hanson nennen 70,1 % und 75,6 %. Der Energiewert 6,44 % der Vorlage passt zu 75,6 %, nicht zu 76,0 %.</td></tr>
+        <tr><td>Formationen 72,2 % und 76,0 %</td><td><span class="pill warn">nicht prüfbar</span></td><td>Schickhofer und Hanson nennen 33,4 %, 41,3 %, 70,1 % und 75,6 %. Der Energiewert 6,44 % der Vorlage passt zu 75,6 %, nicht zu 76,0 %.</td></tr>
         <tr><td>„4,87 % weniger Brutto-Energiebedarf“</td><td><span class="pill fix">korrigiert</span></td><td>Der Wert bezieht sich auf den Bedarf ohne Luftwiderstand. Gegenüber dem Solo-Lauf sind es 4,50 %.</td></tr>
         <tr><td>Energiewert zwischen den Stützstellen linear interpoliert</td><td><span class="pill fix">korrigiert</span></td><td>Bei 2:30 h zeigte die Vorlage 3,51 % statt 3,12 %, also 12 % zu viel. Jetzt wird mit dem Quadrat des Tempos gerechnet.</td></tr>
         <tr><td>Auswahl Gegenwind / Rückenwind</td><td><span class="pill fix">entfernt</span></td><td>Die Auswahl änderte nur einen Hinweistext, keine Zahl.</td></tr>
@@ -228,15 +244,46 @@ function model(Tmin,d){
 }
 
 // ---- Daten für die Oberfläche --------------------------------------------
+// Geometrie in Metern relativ zum Hauptläufer (0,0), y nach vorn. geo: wie sicher die Aufstellung belegt ist.
+const ROW3=[[-0.75,1.3],[0,1.3],[0.75,1.3]];
 const PRESETS=[
-  {d:33.4,label:"33,4 %",name:"Pacer seitlich",src:"Schickhofer & Hanson, Formation 4. Die schwächste der vier simulierten Aufstellungen."},
-  {d:38.5,label:"38,5 %",name:"Bekele, ungünstigste Position",src:"Polidori et al., CFD-Nachbildung Berlin 2019."},
-  {d:57.3,label:"57,3 %",name:"Bekele, beste Position hinter den Pacern",src:"Polidori et al. Referenzfall für alle Zeitangaben."},
-  {d:63.3,label:"63,3 %",name:"Position 2 in einer Fünferreihe",src:"Beaumont et al."},
-  {d:70.1,label:"70,1 %",name:"Formation 1",src:"Schickhofer & Hanson."},
-  {d:75.6,label:"75,6 %",name:"Pacer vorn und hinten",src:"Schickhofer & Hanson, Formation 2. Die beste der vier simulierten Aufstellungen."},
-  {d:85,label:"85 %",name:"Obergrenze",src:"da Silva et al. nennen 85 % als das, was ideales Drafting bestenfalls erreicht."}
+  {d:33.4,label:"33,4 %",name:"Pacer seitlich neben dir",pac:[[0,1.2],[-0.7,0],[0.7,0]],
+   info:"Zwei Pacer laufen 0,7 m neben dir, die Luft wird zwischen euch beschleunigt. Den dritten Pacer habe ich vorn eingezeichnet, seine Lage ist aus dem Text erschlossen. Schickhofer & Hanson, Formation 4."},
+  {d:38.5,label:"38,5 %",name:"Hinter der Dreierreihe, ungünstig",pac:ROW3,ghost:[0.375,0],
+   info:"Bekele hinter drei Pacern nebeneinander, aber nicht in der besten Position. Welche Position das genau ist, nennt das Abstract nicht. Polidori et al."},
+  {d:41.3,label:"41,3 %",name:"Zwei Pacer vorn, Lücke dazwischen",pac:[[-0.35,1.2],[0.35,1.2]],
+   info:"Die Luft strömt durch die Lücke zwischen den beiden auf dich. Die Zahl der Pacer ist aus dem Text erschlossen. Schickhofer & Hanson, Formation 3."},
+  {d:57.3,label:"57,3 %",name:"Direkt hinter einem der drei Pacer",pac:ROW3,
+   info:"Bekeles beste Position: 1,3 m direkt hinter einem Läufer der Dreierreihe. Referenzfall für alle Zeitangaben. Polidori et al."},
+  {d:63.3,label:"63,3 %",name:"Zweiter in einer Fünferreihe",pac:[[0,1.2],[0,-1.2],[0,-2.4],[0,-3.6]],
+   info:"Fünf Läufer hintereinander, du an Position 2. Der Abstand ist im Abstract nicht genannt. Beaumont et al."},
+  {d:70.1,label:"70,1 %",name:"Ein Pacer direkt vor dir",pac:[[0,1.2]],
+   info:"1,2 m Abstand. Schickhofer & Hanson, Formation 1."},
+  {d:75.6,label:"75,6 %",name:"Pacer vor und hinter dir",pac:[[0,1.2],[0,-1.2]],
+   info:"Je 1,2 m Abstand. Der hintere Pacer füllt deinen Sog auf. Die beste der vier simulierten Aufstellungen. Schickhofer & Hanson, Formation 2."},
+  {d:85,label:"85 %",name:"Rechnerische Obergrenze",pac:[],shield:true,
+   info:"da Silva et al. nennen 85 % als das, was ideales Drafting bestenfalls erreicht. Eine konkrete Aufstellung dazu gibt es nicht."}
 ];
+const CUSTOM={name:"Eigener Wert",pac:[],info:"Keine Studie hat genau diesen Wert simuliert."};
+
+// Zeichnet eine Formation als SVG. Maßstab je Bild so, dass alle Läufer hineinpassen.
+function fig(p,W,H,big){
+  const me=p.ghost||[0,0], pts=p.pac.concat([me]);
+  const xs=pts.map(q=>q[0]), ys=pts.map(q=>q[1]);
+  const x0=Math.min(...xs)-0.3, x1=Math.max(...xs)+0.3, y0=Math.min(...ys)-0.25, y1=Math.max(...ys)+(p.shield?0.75:0.25);
+  const m=big?14:5, sc=Math.min(big?40:24,(W-2*m)/(x1-x0),(H-2*m)/(y1-y0)), dx=big?4:0;
+  const X=x=>(W/2+dx+(x-(x0+x1)/2)*sc).toFixed(1), Y=y=>(H/2-(y-(y0+y1)/2)*sc).toFixed(1);
+  const man=(q,cls)=>'<ellipse class="'+cls+'" cx="'+X(q[0])+'" cy="'+Y(q[1])+'" rx="'+(0.25*sc).toFixed(1)+'" ry="'+(0.15*sc).toFixed(1)+'"/>'
+    +(cls==="ghost"?'':'<circle class="'+cls+' hd" cx="'+X(q[0])+'" cy="'+Y(q[1])+'" r="'+(0.11*sc).toFixed(1)+'"/>');
+  let o='<svg viewBox="0 0 '+W+' '+H+'" aria-hidden="true">';
+  o+=p.pac.map(q=>man(q,"pc")).join("");
+  if(p.ghost) o+=man(me,"ghost")+'<text class="q" x="'+(+X(me[0])+0.34*sc).toFixed(1)+'" y="'+(+Y(me[1])+4).toFixed(1)+'">?</text>';
+  else o+=man(me,"me");
+  if(p.shield){const r=0.55*sc,cx=+X(0),cy=+Y(0);
+    o+='<path class="ghost" d="M'+(cx-r).toFixed(1)+' '+cy.toFixed(1)+' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 1 '+(cx+r).toFixed(1)+' '+cy.toFixed(1)+'"/>';}
+  if(big) o+='<path class="dir" d="M9 '+(H-10)+' V12 M5 17 L9 11 L13 17"/>';
+  return o+'</svg>';
+}
 const SPREAD=[
   {d:57.3,name:"57,3 % · Polidori et al.",own:"2,84 % weniger Energiebedarf bei 5,75 m/s. Das Abstract nennt keine Zeit."},
   {d:63.3,name:"63,3 % · Beaumont et al.",own:"3:28 min (4,4 % bessere Laufökonomie, 2,9 % schneller)"},
@@ -257,7 +304,10 @@ function render(){
 
   const p=PRESETS.find(x=>Math.abs(x.d-d)<0.05);
   document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",String(!!p&&+c.dataset.d===p.d)));
-  $("presetInfo").textContent=p?p.name+". "+p.src:"Eigener Wert. Keine Studie hat genau diese Formation simuliert.";
+  const cur=p||CUSTOM;
+  $("presetName").textContent=cur.name;
+  $("presetInfo").textContent=cur.info;
+  if($("figBig").dataset.k!==cur.name){$("figBig").innerHTML=fig(cur,112,150,true);$("figBig").dataset.k=cur.name;}
 
   $("saving").textContent=mmss(m.sec)+" min";
   $("energy").textContent=de(m.saveSolo,2)+" %";
@@ -283,7 +333,7 @@ function render(){
     "                        = "+(T*60)+" s × "+de(m.r,3)+" × "+de(d/100*m.inc/100,5)+" = "+de(m.sec,0)+" s";
 }
 
-$("chips").innerHTML=PRESETS.map(p=>'<button type="button" class="chip" data-d="'+p.d+'" aria-pressed="false">'+p.label+'</button>').join("");
+$("chips").innerHTML=PRESETS.map(p=>'<button type="button" class="chip" data-d="'+p.d+'" aria-pressed="false" aria-label="'+p.label+', '+p.name+'">'+fig(p,58,76,false)+p.label+'</button>').join("");
 $("chips").addEventListener("click",ev=>{const b=ev.target.closest(".chip");if(!b)return;$("drag").value=b.dataset.d;render();});
 $("spreadTable").innerHTML=SPREAD.map(s=>{const x=model(120,s.d);
   return '<tr><td>'+s.name+'</td><td class="num" data-label="Dieser Rechner">'+mmss(x.sec)+' min · '+de(x.saveSolo,2)+' %</td><td data-label="Originalstudie">'+s.own+'</td></tr>';}).join("");
