@@ -124,7 +124,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 31</div>
+    <div class="kicker">Testversion 32</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -156,8 +156,10 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>Nach jeder Änderung rechnet die App zuerst grob, mit halber Auflösung. Nach etwa einer Sekunde steht eine erste Schätzung mit „≈“ da, sie liegt meist bis zu 3 Punkte daneben. Danach verfeinert sie, ausgehend vom groben Ergebnis. Solange gemessen wird, steht „≈“ vor dem Wert, und er kann noch um einige Punkte wandern. Fertig ist die Messung, wenn vier Blöcke von je 100 Rechenschritten höchstens 0,4 Punkte auseinanderliegen. Dann verschwindet das „≈“, darunter steht „✓ fertig“, und angezeigt wird der Mittelwert dieser Blöcke. Der goldene Balken am oberen Bildrand zeigt den Fortschritt. Danach rechnet die App mit wenig Last weiter und mittelt über einen längeren Zeitraum. Das zeigt ein blasser Balken an derselben Stelle. Der Wert ändert sich dabei meist nur noch um Zehntelpunkte. Tempo und Wind ändern nur die Umrechnung und brauchen keine neue Berechnung.</dd>
       <dt>Mindestabstand</dt>
       <dd>Wie dicht ein Pacer an dich oder einen anderen Läufer heran darf, hängt vom seitlichen Versatz ab (Mitte zu Mitte):
-        <span style="display:block;margin-top:4px">unter 25 cm seitlich: mindestens 1,0 m längs<br>25 bis 45 cm: mindestens 0,5 m<br>45 bis 60 cm: mindestens 0,3 m<br>ab 60 cm: nebeneinander möglich</span>
-        Die 1 m direkt hintereinander nennt Pugh (1970) als natürliche Grenze. Im Drohnenvideo der INEOS 1:59 Challenge liefen Kipchoge und der Pacer vor ihm sogar 1,4 m auseinander, weil die Füße bei diesem Tempo weit nach vorn und hinten schwingen. Seitlich um 28 bis 31 cm versetzt liefen die Pacer dort nur 0,53 m hintereinander. Die Stufe 45 bis 60 cm ist eine eigene Annahme.</dd>
+        <span style="display:block;margin-top:4px">unter 25 cm seitlich: mindestens 1,4 m längs<br>25 bis 45 cm: mindestens 0,5 m<br>45 bis 60 cm: mindestens 0,3 m<br>ab 60 cm: nebeneinander möglich</span>
+        Die 1,4 m direkt hintereinander stammen aus dem Drohnenvideo der INEOS 1:59 Challenge: So weit liefen Kipchoge und der Pacer vor ihm auseinander, weil die Füße bei diesem Tempo weit nach vorn und hinten schwingen. Die Aufstellungen aus den Studien (1,2 und 1,3 m) bleiben als Knöpfe erhalten, auch wenn sie die Regel unterschreiten. Seitlich um 28 bis 31 cm versetzt liefen die Pacer dort nur 0,53 m hintereinander. Die Stufe 45 bis 60 cm ist eine eigene Annahme.</dd>
+      <dt>Beste Aufstellungen</dt>
+      <dd>Die Knöpfe „Beste: 1 Pacer“, „Beste: 2“ und „Beste: 3“ sind das Ergebnis einer Suche über 2649 Aufstellungen mit der Abstandsregel. In allen drei Fällen läuft ein Pacer 1,4 m direkt vor dir. Weitere Pacer bringen im Modell am meisten schräg hinter dir, weil sich vor ihnen Luft staut und deinen Sog auffüllt. Diesen Effekt überschätzt das Modell: Im Vergleich mit der Studie liefert es für einen Pacer hinter dir 7,7 statt 5,5 Punkte. Der Wert für drei Pacer (rund 97 %) ist deshalb vermutlich deutlich zu hoch.</dd>
       <dt>Gefühlter Wind</dt>
       <dd>So stark müsste der Fahrtwind im Alleinlauf sein, damit dich dieselbe Kraft bremst wie jetzt. Die Kraft wächst mit dem Quadrat des Winds, deshalb gilt: gefühlter Wind = Fahrtwind × Wurzel aus dem Rest-Widerstand. Beispiel: 70 % weniger Widerstand lässt 30 % übrig, die Wurzel daraus ist 0,55, bei 15 km/h sind das 8,2 km/h. Läufst du allein, steht dort dein voller Fahrtwind.</dd>
       <dt>Sekunden pro Kilometer</dt>
@@ -503,6 +505,10 @@ const PRESETS=[
   {k:"chain5",t:"Fünferkette",p:[[1.2,0],[-1.2,0],[-2.4,0],[-3.6,0]],ref:63.3,src:"Beaumont et al."},
   // Rumpfmitten im Drohnenvideo der INEOS 1:59 Challenge gemessen (Wien 2019, Mittel aus zwei Einzelbildern).
   // Braucht das große Feld, weil die vordersten Pacer 2,7 m vor dir laufen.
+  // Ergebnis einer Suche über 2649 Aufstellungen mit der Abstandsregel (1,4 m direkt hintereinander)
+  {k:"b1",t:"Beste: 1 Pacer",p:[[1.4,0]],note:"Suchergebnis: beste Aufstellung mit einem Pacer."},
+  {k:"b2",t:"Beste: 2",p:[[1.4,0],[-0.7,-0.3]],note:"Suchergebnis: beste Aufstellung mit zwei Pacern."},
+  {k:"b3",t:"Beste: 3",p:[[1.4,0],[-0.6,-0.3],[-0.6,0.3]],note:"Suchergebnis. Wert vermutlich zu hoch, siehe Erklärung."},
   {k:"ineos",t:"INEOS-V",big:true,p:[[1.42,-0.05],[2.14,0.30],[2.67,0.61],[2.09,-0.47],[2.63,-0.75],[-2.20,0.23],[-2.16,-0.47]],
    note:"Gemessen im Drohnenvideo der INEOS 1:59 Challenge, Wien 2019."}
 ];
@@ -526,7 +532,7 @@ function loadPreset(k){const P=PRESETS.find(p=>p.k===k);
 // Mindestabstand längs (Mitte zu Mitte) je nach seitlichem Versatz.
 // Unter 25 cm laufen die Füße in einer Spur: 1 m nach Pugh 1970. Die Stufe 25–45 cm stützt sich auf die INEOS-Formation
 // (dort 0,53 m längs bei 0,28 bis 0,31 m seitlich), die Stufe 45–60 cm ist eine eigene Annahme.
-const GAPS=[[0.25,1.0],[0.45,0.5],[0.6,0.3]];
+const GAPS=[[0.25,1.4],[0.45,0.5],[0.6,0.3]];
 const minGap=w=>{for(const [lim,g] of GAPS) if(w<lim) return g; return 0;};
 const cm=v=>Math.round(v*100);
 // Liefert null, wenn q frei ist, sonst den Grund. skip = Index des Pacers, der gerade bewegt wird (−1 für einen neuen).
@@ -539,7 +545,7 @@ function check(q,skip){
     const overlap=Math.abs(o.x-q.x)<2*A+1&&Math.abs(o.y-q.y)<2*B+1;
     if(d<g-1e-9||overlap){
       const wer=i===0?"dir":"einem anderen Pacer";
-      return w<0.3?"Zu dicht an "+wer+": hintereinander mindestens 1 m."
+      return w<0.25?"Zu dicht an "+wer+": hintereinander mindestens 1,4 m."
                   :"Zu dicht an "+wer+": bei "+cm(w)+" cm seitlich mindestens "+de(g,1)+" m längs.";
     }
   }
