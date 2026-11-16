@@ -124,7 +124,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 29</div>
+    <div class="kicker">Testversion 30</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -169,7 +169,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Laufstil der Figuren</dt>
       <dd>Der schnelle Laufstil ist aus einer Zeitlupenaufnahme von Eliud Kipchoge bei 2:52 min/km ausgemessen: Oberschenkel von 29° hinter bis 55° vor der Senkrechten, Knie bis 144° gebeugt, Ferse fast am Gesäß, Bodenkontakt 26 % des Doppelschritts. Der Oberarm pendelt hinter der Senkrechten. Für langsames Laufen gibt es keine solche Messung, dort gelten eigene Annahmen nach den Spitzenwerten von Fukuchi et al. Dazwischen wird nach Tempo gemischt.</dd>
       <dt>Schrittfrequenz</dt>
-      <dd>Das dritte Rad unter „Tempo + Wind“. Bei „auto“ folgt sie dem Tempo nach den Messwerten von Fukuchi et al.: 162 Schritte pro Minute bei 9 km/h, 172 bei 12,6 km/h, 184 bei 16,2 km/h, höchstens 186. So viele hat Eliud Kipchoge in einer Seitenaufnahme bei 2:52 min/km. Sie steigt also nur wenig, das meiste Tempo kommt aus der Schrittlänge. Du kannst sie auch fest einstellen, dann wird bei höherem Tempo nur der Schritt länger. Sie wirkt nur auf die Figuren der Seitenansicht, nicht auf die Prozentzahlen.</dd>
+      <dd>Das dritte Rad unter „Tempo + Wind“. Voreingestellt sind 180 Schritte pro Minute, also 3 Schritte pro Sekunde. Bei höherem Tempo wird dann nur der Schritt länger. Bei „auto“ folgt sie dem Tempo nach den Messwerten von Fukuchi et al.: 162 Schritte pro Minute bei 9 km/h, 172 bei 12,6 km/h, 184 bei 16,2 km/h, höchstens 186. So viele hat Eliud Kipchoge in einer Seitenaufnahme bei 2:52 min/km. Sie steigt also nur wenig, das meiste Tempo kommt aus der Schrittlänge. Du kannst sie auch fest einstellen, dann wird bei höherem Tempo nur der Schritt länger. Sie wirkt nur auf die Figuren der Seitenansicht, nicht auf die Prozentzahlen.</dd>
       <dt>Wirbel</dt>
       <dd>Der Schalter unter „Bild“ zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
@@ -1137,7 +1137,7 @@ function loop(){
   }
   requestAnimationFrame(loop);
 }
-sendSetup(); loadPreset("f1"); setWind(0); setPace(240); setCad(0); setView(false); loop();
+sendSetup(); loadPreset("f1"); setWind(0); setPace(240); setCad(180); setView(false); loop();
 </script>
 </body>
 </html>
