@@ -122,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 24</div>
+    <div class="kicker">Testversion 25</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -164,8 +164,10 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>Beides ist dieselbe Strömung, nur anders betrachtet. Unter „Bild“ wechselst du die Sicht. Bei „Fahrtwind“ stehst du still und die Luft strömt an dir vorbei. Bei „Mitgerissene Luft“ steht die Luft, und du siehst, was die Läufer mit ihr machen: Vorn schieben sie sie weg, hinter sich reißen sie sie mit. Die dunkle, ruhige Zone der einen Sicht ist der Sog der anderen.</dd>
       <dt>Seitenansicht</dt>
       <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren in Zeitlupe. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Nur Pacer, die höchstens 30 cm seitlich versetzt laufen, liegen in der Schnittebene. Die übrigen sind blass gezeichnet und beeinflussen die Luft in diesem Bild nicht.</dd>
+      <dt>Laufstil der Figuren</dt>
+      <dd>Der schnelle Laufstil ist aus einer Zeitlupenaufnahme von Eliud Kipchoge bei 2:52 min/km ausgemessen: Oberschenkel von 29° hinter bis 55° vor der Senkrechten, Knie bis 144° gebeugt, Ferse fast am Gesäß, Bodenkontakt 26 % des Doppelschritts. Der Oberarm pendelt hinter der Senkrechten. Für langsames Laufen gibt es keine solche Messung, dort gelten eigene Annahmen nach den Spitzenwerten von Fukuchi et al. Dazwischen wird nach Tempo gemischt.</dd>
       <dt>Schrittfrequenz</dt>
-      <dd>Das dritte Rad unter „Tempo + Wind“. Bei „auto“ folgt sie dem Tempo nach den Messwerten von Fukuchi et al.: 162 Schritte pro Minute bei 9 km/h, 172 bei 12,6 km/h, 184 bei 16,2 km/h, höchstens 190. Sie steigt also nur wenig, das meiste Tempo kommt aus der Schrittlänge. Du kannst sie auch fest einstellen, dann wird bei höherem Tempo nur der Schritt länger. Sie wirkt nur auf die Figuren der Seitenansicht, nicht auf die Prozentzahlen.</dd>
+      <dd>Das dritte Rad unter „Tempo + Wind“. Bei „auto“ folgt sie dem Tempo nach den Messwerten von Fukuchi et al.: 162 Schritte pro Minute bei 9 km/h, 172 bei 12,6 km/h, 184 bei 16,2 km/h, höchstens 186. So viele hat Eliud Kipchoge in einer Seitenaufnahme bei 2:52 min/km. Sie steigt also nur wenig, das meiste Tempo kommt aus der Schrittlänge. Du kannst sie auch fest einstellen, dann wird bei höherem Tempo nur der Schritt länger. Sie wirkt nur auf die Figuren der Seitenansicht, nicht auf die Prozentzahlen.</dd>
       <dt>Wirbel</dt>
       <dd>Der Schalter unter „Bild“ zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
@@ -789,20 +791,23 @@ let sim2=null, map2=null, sideT=0, slow=2;
 const SEG={thigh:0.44,shank:0.44,torso:0.52,uarm:0.29,farm:0.26};
 const RAD=Math.PI/180, HS=0.055, HEEL=0.07, BALL=0.2;        // Sohle unter dem Sprunggelenk, Ferse und Ballen längs des Fußes
 // Schwungphase: [Anteil, vor, hoch] des Sprunggelenks relativ zum Hüftgelenk
-const SWING={jog:[[0.2,-0.453,-0.636],[0.45,-0.315,-0.524],[0.62,-0.117,-0.664],[0.82,0.17,-0.785],[0.93,0.23,-0.805]],
-             fast:[[0.2,-0.59,-0.42],[0.45,-0.25,-0.32],[0.62,0.05,-0.56],[0.82,0.3,-0.73],[0.93,0.32,-0.775]]};
+// "fast" ist aus einer Seitenaufnahme von Eliud Kipchoge bei 2:52 min/km gemessen (Berlin, 3 Doppelschritte, 30 Bilder/s,
+// Gelenkpunkte der eingeblendeten Skelettlinien): 186 Schritte je Minute, Stützphase 26 %, Oberschenkel −29 bis +55°, Knie bis 144°.
+// "jog" ist eine eigene Festlegung nach den Spitzenwerten von Fukuchi et al. 2017.
+const SWING={jog:[[0.10,-0.40,-0.68],[0.22,-0.455,-0.62],[0.33,-0.41,-0.55],[0.45,-0.315,-0.524],[0.62,-0.117,-0.664],[0.80,0.15,-0.775],[0.92,0.225,-0.803]],
+             fast:[[0.10,-0.615,-0.52],[0.22,-0.63,-0.31],[0.33,-0.47,-0.14],[0.45,-0.30,-0.135],[0.62,-0.10,-0.415],[0.80,0.27,-0.73],[0.92,0.37,-0.765]]};
 const sstep=t=>{t=t<0?0:t>1?1:t; return t*t*(3-2*t);};
 // Schrittfrequenz in Schritten je Minute. CAD = 0 heißt automatisch: nach Fukuchi et al. steigt sie mit dem Tempo
-// nur wenig (162 bei 2,5 m/s, 172 bei 3,5 m/s, 184 bei 4,5 m/s), gedeckelt bei 190. Sonst gilt der eingestellte Wert.
+// nur wenig (162 bei 2,5 m/s, 172 bei 3,5 m/s, 184 bei 4,5 m/s), gedeckelt bei 186 wie bei Kipchoge gemessen. Sonst gilt der eingestellte Wert.
 let CAD=0;
-function stepsPerMin(v){return CAD||2*Math.max(78,Math.min(95,81+5.5*(v-2.5)));}
+function stepsPerMin(v){return CAD||2*Math.max(78,Math.min(93,81+5.5*(v-2.5)));}
 function gaitParams(v){
   const s=Math.max(0,Math.min(1,(v-2.5)/3.3));
   const Tc=120/stepsPerMin(v);                                      // Dauer eines Doppelschritts
   const duty=Math.min(0.38-0.09*s,1.0/(Math.max(v,1)*Tc));          // Bodenkontakt höchstens 1 m Weg
   const Ls=v*duty*Tc, ts=duty*Tc, tf=(0.5-duty)*Tc;
   return {s,Tc,duty,Ls,h0:0.88,dip:Math.min(0.06,ts*9.81*tf/(2*Math.PI)),apex:9.81*tf*tf/8,
-          px:0.04+0.02*s,xtd:0.11+0.14*Ls,thTd:(-12+10*s)*RAD,thTo:(50+12*s)*RAD,
+          px:0.04+0.02*s,xtd:0.11+0.14*Ls,thTd:(-12+12*s)*RAD,thTo:(50+10*s)*RAD,
           keys:SWING.jog.map((k,i)=>k.map((a,j)=>a+(SWING.fast[i][j]-a)*s))};
 }
 function hipHeight(ph,G){const q=((ph%0.5)+0.5)%0.5;
@@ -863,10 +868,11 @@ function pose(ph,v){
   const vq=Math.round(v*50), key=vq+"_"+CAD, G=GCACHE[key]||(GCACHE[key]=gaitParams(vq/50));
   ph=((ph%1)+1)%1;
   const A=leg(ph,G), B=leg(ph+0.5,G), hz=hipHeight(ph,G), s=G.s;
-  const lean=(5+4*s)*RAD, up=L=>[L*Math.sin(lean),hz+L*Math.cos(lean)];
-  const sh=up(SEG.torso-0.04), amp=(26+16*s)*RAD;
-  const arm=p=>{const cs=Math.cos(2*Math.PI*(p-G.duty-0.04)), al=amp*cs-5*RAD;         // vorn, wenn das eigene Bein hinten abstößt
-    const el=[sh[0]+SEG.uarm*Math.sin(al),sh[1]-SEG.uarm*Math.cos(al)], b=al+(86+(16+10*s)*cs)*RAD;
+  const lean=(5+2.5*s)*RAD, up=L=>[L*Math.sin(lean),hz+L*Math.cos(lean)];
+  // Oberarm pendelt hinter der Senkrechten (gemessen 0 bis −55°), der Unterarm zeigt nach vorn
+  const sh=up(SEG.torso-0.04), amp=(16+11*s)*RAD, mid=-(14+13*s)*RAD;
+  const arm=p=>{const cs=Math.cos(2*Math.PI*(p-G.duty-0.04)), al=mid+amp*cs;           // vorn, wenn das eigene Bein hinten abstößt
+    const el=[sh[0]+SEG.uarm*Math.sin(al),sh[1]-SEG.uarm*Math.cos(al)], b=al+(96+8*cs)*RAD;
     return {el,ha:[el[0]+SEG.farm*Math.sin(b),el[1]-SEG.farm*Math.cos(b)]};};
   const hd=up(SEG.torso+0.17); hd[0]+=0.03;
   return {hip:[0,hz],chest:up(0.36),neck:up(SEG.torso),neckLo:up(SEG.torso-0.03),neckHi:[hd[0]-0.04,hd[1]-0.065],head:hd,sh,A,B,armN:arm(ph+0.5),armF:arm(ph),lean,Tc:G.Tc,duty:G.duty,G};
