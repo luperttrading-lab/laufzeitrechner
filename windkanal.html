@@ -101,7 +101,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 9</div>
+    <div class="kicker">Testversion 10</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -119,7 +119,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <span><i id="lg1c"></i><span id="lg1"></span></span>
       <span><i id="lg2c"></i><span id="lg2"></span></span>
     </div>
-    <p class="small" style="margin:8px 0 0">Jeder Strich ist ein Luftteilchen, seine Länge zeigt das Tempo. Dunkle Flächen sind ruhige Luft. Tippe auf eine freie Stelle, um einen Pacer zu setzen, und ziehe ihn mit dem Finger. Bis zu zehn Pacer sind möglich. Du bist der goldene Läufer. Mit − rechts über den Reitern wird das Feld größer und die Darstellung kleiner: erst 4,8 × 9,6 m, dann das ganze Feld auf einen Blick. Mit + geht es zurück.</p>
+    <p class="small" style="margin:8px 0 0">Jeder Strich ist ein Luftteilchen, seine Länge zeigt das Tempo. Dunkle Flächen sind ruhige Luft. Tippe auf eine freie Stelle, um einen Pacer zu setzen, und ziehe ihn mit dem Finger. Er rastet in 10-cm-Schritten ein. Das Raster zeigt Meter ab dir, die goldenen Linien laufen durch dich. Unter „Bild“ schaltest du ein feines 10-cm-Raster zu und die Luft aus, wenn du nur aufstellen willst. Bis zu zehn Pacer sind möglich. Du bist der goldene Läufer. Mit − rechts über den Reitern wird das Feld größer und die Darstellung kleiner: erst 4,8 × 9,6 m, dann das ganze Feld auf einen Blick. Mit + geht es zurück.</p>
   </section>
 
   <section class="panel">
@@ -178,15 +178,15 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
   </div>
   <div class="pane" id="pane-pacer" hidden>
     <div class="row">
-      <button type="button" class="sq" id="nL" aria-label="5 cm nach links">◀</button>
-      <button type="button" class="sq" id="nU" aria-label="5 cm nach vorn">▲</button>
-      <button type="button" class="sq" id="nD" aria-label="5 cm nach hinten">▼</button>
-      <button type="button" class="sq" id="nR" aria-label="5 cm nach rechts">▶</button>
+      <button type="button" class="sq" id="nL" aria-label="10 cm nach links">◀</button>
+      <button type="button" class="sq" id="nU" aria-label="10 cm nach vorn">▲</button>
+      <button type="button" class="sq" id="nD" aria-label="10 cm nach hinten">▼</button>
+      <button type="button" class="sq" id="nR" aria-label="10 cm nach rechts">▶</button>
       <button type="button" id="del">Entfernen</button>
       <button type="button" id="clr">Alle weg</button>
     </div>
     <div style="font-weight:700;font-size:.86rem;margin-top:8px" id="selInfo">Kein Pacer gewählt</div>
-    <div class="small">Pfeile verschieben den gewählten Pacer um 5 cm.</div>
+    <div class="small">Pfeile verschieben um 10 cm. Pacer rasten im 10-cm-Raster ein.</div>
   </div>
   <div class="pane" id="pane-wind" hidden>
     <div class="wheels">
@@ -200,6 +200,13 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <button type="button" id="vTunnel" aria-pressed="true">Fahrtwind</button>
       <button type="button" id="vRoad" aria-pressed="false">Mitgerissene Luft</button>
       <button type="button" id="vor" aria-pressed="false" style="margin-left:auto">Wirbel</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span class="small" style="font-weight:700">Raster</span>
+      <button type="button" data-g="0" aria-pressed="false">aus</button>
+      <button type="button" data-g="1" aria-pressed="true">1 m</button>
+      <button type="button" data-g="2" aria-pressed="false">10 cm</button>
+      <button type="button" id="air" aria-pressed="true" style="margin-left:auto">Luft</button>
     </div>
     <div class="small" id="viewHint" style="margin-top:8px;white-space:normal"></div>
   </div>
@@ -303,6 +310,7 @@ let NX=128, NY=240, MX=64, MY=90;
 const PAR={U:0.1,nu:0.008,cs:0.16,lam:0.0004,mu:0.2};
 const CAL={nu:0.008,lam:0.0004,mu:0.2};   // Messmodus: geeicht, Strömung beruhigt sich
 const VOR={nu:0.004,lam:0,mu:0};          // Wirbelmodus: reine 2D-Strömung ohne Korrekturen, Wirbel lösen sich ab
+let grid=1, showAir=true, cssScale=0.47, topPx=130;   // Raster: 0 aus, 1 Meter, 2 zusätzlich 10 cm
 let vortex=false, kept=null, road=false;   // road = Sicht von der Straße aus: die Luft steht, die Läufer reißen sie mit               // kept = letzter Messwert für die aktuelle Aufstellung
 let F0=0.09034818107883136;                       // Widerstand allein, im selben Modell vorab berechnet
 let SETTLE=3000;                     // Schritte, bis sich die Strömung beruhigt hat
@@ -376,15 +384,17 @@ cv.addEventListener("touchstart",ev=>{const t=ev.touches[0];if(hit(...cell(t))>=
 cv.addEventListener("touchmove",ev=>{if(dragging>=0)ev.preventDefault();},{passive:false});
 cv.addEventListener("pointerdown",ev=>{const [x,y]=cell(ev);dragging=hit(x,y);moved=false;
   if(dragging>=0){sel=dragging;try{cv.setPointerCapture(ev.pointerId);}catch(e){}ui();}});
-cv.addEventListener("pointermove",ev=>{if(dragging<0)return;const [x,y]=cell(ev),q=pacers[dragging],n={x,y,a:A,b:B};
-  if(free(n,dragging)){q.x=x;q.y=y;moved=true;preset="";apply();ui();}});
+cv.addEventListener("pointermove",ev=>{if(dragging<0)return;const [cx,cy]=cell(ev),q=pacers[dragging],n={x:snap(cx,MX),y:snap(cy,MY),a:A,b:B};
+  if(n.x===q.x&&n.y===q.y) return;
+  if(free(n,dragging)){q.x=n.x;q.y=n.y;moved=true;preset="";apply();ui();}});
 const drop=()=>{dragging=-1;};
 cv.addEventListener("pointerup",drop); cv.addEventListener("pointercancel",drop);
 cv.addEventListener("click",ev=>{if(moved){moved=false;return;}const [x,y]=cell(ev);const h=hit(x,y);
   if(h>=0){sel=h;showTab("pacer");ui();return;}
-  const n={x,y,a:A,b:B};
+  const n={x:snap(x,MX),y:snap(y,MY),a:A,b:B};
   if(pacers.length<MAXP&&free(n,-1)){pacers.push(n);sel=pacers.length-1;preset="";apply();showTab("pacer");ui();}});
-function nudge(dx,dy){const q=pacers[sel];if(!q)return;const n={x:q.x+dx*0.05/DX,y:q.y+dy*0.05/DX,a:A,b:B};
+const snap=(v,o)=>o+Math.round((v-o)*DX*10)/10/DX;      // auf volle 10 cm Abstand zu dir
+function nudge(dx,dy){const q=pacers[sel];if(!q)return;const n={x:dx?snap(q.x+dx*0.1/DX,MX):q.x,y:dy?snap(q.y+dy*0.1/DX,MY):q.y,a:A,b:B};
   if(free(n,sel)){q.x=n.x;q.y=n.y;preset="";apply();ui();}}
 $("nU").onclick=()=>nudge(0,-1); $("nD").onclick=()=>nudge(0,1); $("nL").onclick=()=>nudge(-1,0); $("nR").onclick=()=>nudge(1,0);
 $("del").onclick=()=>{if(sel<0)return;pacers.splice(sel,1);sel=-1;preset=pacers.length?"":"solo";apply();ui();};
@@ -403,6 +413,9 @@ function setView(r){road=r; $("vTunnel").setAttribute("aria-pressed",String(!r))
                              :"Du stehst, die Luft strömt an dir vorbei, wie im Windkanal. Dunkle Zonen sind Luft, die fast so schnell ist wie du.";
   for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;} readout();}
 $("vTunnel").onclick=()=>setView(false); $("vRoad").onclick=()=>setView(true);
+document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{grid=+b.dataset.g;document.querySelectorAll("[data-g]").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));});
+$("air").onclick=()=>{showAir=!showAir;$("air").setAttribute("aria-pressed",String(showAir));};
+addEventListener("resize",measure);
 // Drei Stufen: Standardfeld, größeres Feld, größeres Feld ganz auf dem Bildschirm
 const SIZES=[{NX:128,NY:240,MY:90,F0:0.09034818107883136,settle:3000,np:2600,txt:"3,8 × 7,2 m"},
              {NX:160,NY:320,MY:140,F0:0.09035746588309605,settle:4200,np:4300,txt:"4,8 × 9,6 m"}];
@@ -424,7 +437,7 @@ function setZoom(z){
   const st=document.querySelector(".stage"), v=document.querySelector(".view");
   if(fit){st.style.maxWidth=Math.max(150,Math.floor((v.clientHeight-78)*NX/NY))+"px"; v.scrollTop=0;} else st.style.maxWidth="";
   st.classList.toggle("tiny",fit);
-  $("zOut").disabled=zoom===ZOOMS.length-1; $("zIn").disabled=zoom===0;
+  $("zOut").disabled=zoom===ZOOMS.length-1; $("zIn").disabled=zoom===0; measure();
   fieldMsg=40; readout();
 }
 $("zOut").onclick=()=>setZoom(zoom+1); $("zIn").onclick=()=>setZoom(zoom-1);
@@ -497,10 +510,8 @@ function draw(k){
     d[o]=8+22*a+85*h; d[o+1]=14+38*a+22*h; d[o+2]=24+56*a-36*h; d[o+3]=255;
   }
   octx.putImageData(img,0,0); ctx.imageSmoothingEnabled=true; ctx.drawImage(off,0,0,cv.width,cv.height);
-  // Entfernungsmarken, bezogen auf dich
-  ctx.font="600 20px system-ui,sans-serif"; ctx.fillStyle="rgba(170,184,200,.75)"; ctx.strokeStyle="rgba(170,184,200,.22)"; ctx.lineWidth=1.5; ctx.textAlign="left";
-  for(let m=-6;m<=4;m++){const y=(MY-m/DX)*S; if(y<110||y>cv.height-12) continue;
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(m===0?30:18,y);ctx.stroke(); if(m!==0)ctx.fillText((m>0?"+":"−")+Math.abs(m)+" m",24,y+7);}
+  if(!showAir){ctx.fillStyle="#0c1726";ctx.fillRect(0,0,cv.width,cv.height);}
+  drawGrid();
   // Teilchen als kurze Striche, Länge = Tempo
   const seg=[[],[],[]];
   for(let i=0;i<NP;i++){
@@ -512,12 +523,14 @@ function draw(k){
     else if(y>=NY-1||y<0||body[(y|0)*NX+(x|0)]||Math.random()<0.0015*k/8){x=Math.random()*NX;y=Math.random()*1.5;}
     px[i]=x; py[i]=y;
   }
+  if(showAir){
   ctx.globalCompositeOperation="lighter"; ctx.lineCap="round"; ctx.lineWidth=3;
   (road?[["rgba(110,235,215,.9)",0],["rgba(170,184,200,.42)",1],["rgba(255,176,96,.85)",2]]
        :[["rgba(111,168,220,.6)",0],["rgba(230,238,246,.55)",1],["rgba(255,176,96,.85)",2]]).forEach(([col,j])=>{
     ctx.strokeStyle=col; ctx.beginPath(); const a=seg[j];
     for(let i=0;i<a.length;i+=4){ctx.moveTo(a[i],a[i+1]);ctx.lineTo(a[i+2],a[i+3]+0.01);} ctx.stroke();});
   ctx.globalCompositeOperation="source-over";
+  }
   // Läufer
   [me].concat(pacers).forEach((q,i)=>{
     const X=q.x*S, Y=q.y*S;
@@ -525,9 +538,37 @@ function draw(k){
     ctx.fillStyle=i===0?"#8a6410":"#6c7c8e"; ctx.beginPath(); ctx.arc(X,Y,3.3*S,0,7); ctx.fill();
     if(i>0&&i-1===sel){ctx.strokeStyle="#fff";ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(X,Y,q.a*S+7,q.b*S+7,0,0,7);ctx.stroke();}
     if(i>0&&since>600&&!vortex){const p=100*(ema[i+1]/F0-1);
-      ctx.font="700 21px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#e8edf3";
+      ctx.font="700 "+(11/cssScale)+"px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle="#e8edf3";
       ctx.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",X,Y-q.b*S-12);}
   });
+}
+
+// Raster in Metern, Nullpunkt bist du. Linien und Schrift behalten auf dem Bildschirm ihre Größe, egal wie groß das Feld ist.
+function measure(){cssScale=cv.getBoundingClientRect().width/cv.width||0.47; topPx=(document.querySelector(".hud").offsetHeight+14)/cssScale;}
+function drawGrid(){
+  const W=cv.width,H=cv.height,x0=MX*S,y0=MY*S,d=0.1/DX*S,k=showAir?1:1.7;   // d = 10 cm in Bildpunkten
+  const lines=(step,skip,col,w)=>{ctx.strokeStyle=col;ctx.lineWidth=w/cssScale;ctx.beginPath();
+    for(let i=-Math.ceil(x0/d/step)*step;x0+i*d<=W;i+=step){if(skip(i))continue;const x=x0+i*d;ctx.moveTo(x,0);ctx.lineTo(x,H);}
+    for(let i=-Math.ceil(y0/d/step)*step;y0+i*d<=H;i+=step){if(skip(i))continue;const y=y0+i*d;ctx.moveTo(0,y);ctx.lineTo(W,y);}
+    ctx.stroke();};
+  if(grid===2&&d*cssScale>=5){
+    lines(1,i=>i%5===0,"rgba(200,215,235,"+0.10*k+")",0.6);
+    lines(5,i=>i%10===0,"rgba(200,215,235,"+0.20*k+")",0.8);
+  }
+  if(grid>=1){
+    lines(10,i=>i===0,"rgba(200,215,235,"+0.36*k+")",1.2);
+    lines(1e6,i=>i!==0,"rgba(219,168,74,"+0.60*Math.min(1.5,k)+")",1.6);     // Nulllinien durch dich
+  }
+  // Beschriftung: links der Abstand nach vorn (+) und hinten (−), oben der Abstand zur Seite
+  const fs=13/cssScale; ctx.font="700 "+fs+"px system-ui,sans-serif"; ctx.textBaseline="middle";
+  const tag=(t,x,y,al)=>{const w=ctx.measureText(t).width+fs*0.6, bx=al==="left"?x:x-w/2;
+    ctx.fillStyle="rgba(10,19,32,.78)"; ctx.fillRect(bx,y-fs*0.7,w,fs*1.4);
+    ctx.fillStyle="#e8edf3"; ctx.textAlign=al; ctx.fillText(t,al==="left"?x+fs*0.3:x,y+fs*0.05);};
+  for(let m=-Math.floor((H-y0)/(10*d));y0-m*10*d>topPx+fs*2.2;m++){
+    tag(m===0?"0":(m>0?"+":"−")+Math.abs(m)+" m",2/cssScale,y0-m*10*d,"left");}
+  for(let m=-Math.floor(x0/(10*d));x0+m*10*d<W-fs;m++){ if(x0+m*10*d<fs*3.2) continue;
+    tag(m===0?"0":Math.abs(m)+" m",x0+m*10*d,topPx+fs*0.8,"center");}
+  ctx.textBaseline="alphabetic";
 }
 
 // ---- Anzeige --------------------------------------------------------------
@@ -580,6 +621,7 @@ function loop(){
     } else steps=8;   // Strömung steht: nur noch die Teilchen bewegen
     const rel=3600/(+$("pace").value)+(+$("wind").value);
     draw(steps*Math.min(2.2,Math.max(0.3,rel/15)));
+    if(frame%30===0) measure();
     if(frame++%6===0) readout();
   }
   requestAnimationFrame(loop);
