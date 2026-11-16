@@ -92,16 +92,16 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .nope{animation:nope .35s}
 @keyframes nope{20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
 @media (prefers-reduced-motion:reduce){.nope{animation:none;outline:2px solid var(--warn)}}
-.wheels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wheels{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .wcell{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:5px 4px 4px;min-width:0}
-.wlabel{font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:3px;border-bottom:1px solid var(--line)}
+.wlabel{font-size:.62rem;font-weight:700;letter-spacing:.02em;white-space:nowrap;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:3px;border-bottom:1px solid var(--line)}
 .wheel{position:relative;height:96px;overflow:hidden;touch-action:none;cursor:ns-resize}
 .wlist{will-change:transform}
-.witem{height:32px;line-height:32px;text-align:center;font-weight:800;font-size:1.3rem;white-space:nowrap;color:var(--ink)}
+.witem{height:32px;line-height:32px;text-align:center;font-weight:800;font-size:1.2rem;white-space:nowrap;color:var(--ink)}
 .wband{position:absolute;left:6px;right:6px;top:32px;height:32px;border-top:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);pointer-events:none}
-.wstate{font-size:.98rem;font-weight:800;text-align:center;padding-top:5px;border-top:1px solid var(--line);white-space:nowrap}
-.whint{font-size:.74rem;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wtag{position:absolute;right:7px;font-size:.66rem;font-weight:800;pointer-events:none}
+.wstate{font-size:.84rem;font-weight:800;text-align:center;padding-top:5px;border-top:1px solid var(--line);white-space:nowrap}
+.whint{font-size:.7rem;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wtag{position:absolute;right:3px;font-size:.54rem;font-weight:800;pointer-events:none}
 .wtag.t{top:9px;color:var(--tail)} .wtag.b{bottom:9px;color:var(--head)}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.82rem;color:var(--text2)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
@@ -122,7 +122,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 23</div>
+    <div class="kicker">Testversion 24</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -164,6 +164,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>Beides ist dieselbe Strömung, nur anders betrachtet. Unter „Bild“ wechselst du die Sicht. Bei „Fahrtwind“ stehst du still und die Luft strömt an dir vorbei. Bei „Mitgerissene Luft“ steht die Luft, und du siehst, was die Läufer mit ihr machen: Vorn schieben sie sie weg, hinter sich reißen sie sie mit. Die dunkle, ruhige Zone der einen Sicht ist der Sog der anderen.</dd>
       <dt>Seitenansicht</dt>
       <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren in Zeitlupe. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Nur Pacer, die höchstens 30 cm seitlich versetzt laufen, liegen in der Schnittebene. Die übrigen sind blass gezeichnet und beeinflussen die Luft in diesem Bild nicht.</dd>
+      <dt>Schrittfrequenz</dt>
+      <dd>Das dritte Rad unter „Tempo + Wind“. Bei „auto“ folgt sie dem Tempo nach den Messwerten von Fukuchi et al.: 162 Schritte pro Minute bei 9 km/h, 172 bei 12,6 km/h, 184 bei 16,2 km/h, höchstens 190. Sie steigt also nur wenig, das meiste Tempo kommt aus der Schrittlänge. Du kannst sie auch fest einstellen, dann wird bei höherem Tempo nur der Schritt länger. Sie wirkt nur auf die Figuren der Seitenansicht, nicht auf die Prozentzahlen.</dd>
       <dt>Wirbel</dt>
       <dd>Der Schalter unter „Bild“ zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
@@ -228,7 +230,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
   <div class="pane" id="pane-wind" hidden>
     <div class="wheels">
       <div class="wcell"><div class="wlabel">Wind · km/h</div><div id="wWind"></div><div class="wstate" id="windState"></div><div class="whint" id="windOut"></div></div>
-      <div class="wcell"><div class="wlabel">Lauftempo · min/km</div><div id="wPace"></div><div class="wstate" id="paceState"></div><div class="whint" id="paceOut"></div></div>
+      <div class="wcell"><div class="wlabel">Tempo · min/km</div><div id="wPace"></div><div class="wstate" id="paceState"></div><div class="whint" id="paceOut"></div></div>
+      <div class="wcell"><div class="wlabel">Schritte · /min</div><div id="wCad"></div><div class="wstate" id="cadState"></div><div class="whint" id="cadOut"></div></div>
     </div>
     <input type="hidden" id="pace" value="240"><input type="hidden" id="wind" value="0">
   </div>
@@ -560,10 +563,13 @@ function ui(){
   const pace=+$("pace").value, wind=+$("wind").value, v=3600/pace;
   const ms=Math.round(KM*pace);
   $("paceState").textContent=de(v,1)+" km/h";
-  $("paceOut").textContent="Marathon "+Math.floor(ms/3600)+":"+String(Math.floor(ms%3600/60)).padStart(2,"0")+":"+String(ms%60).padStart(2,"0");
-  $("windState").textContent=wind===0?"Windstille":Math.abs(wind)+" km/h "+(wind>0?"Gegenwind":"Rückenwind");
+  $("paceOut").textContent="42 km "+Math.floor(ms/3600)+":"+String(Math.floor(ms%3600/60)).padStart(2,"0")+":"+String(ms%60).padStart(2,"0");
+  const spm=stepsPerMin(v/3.6);
+  $("cadState").textContent=(CAD?"":"auto ")+Math.round(spm);
+  $("cadOut").textContent="Schritt "+de(v/3.6/(spm/60),2)+" m";
+  $("windState").textContent=wind===0?"Windstille":Math.abs(wind)+" "+(wind>0?"Gegenwind":"Rückenwind");
   $("windState").style.color=windCol(wind);
-  $("windOut").textContent=v+wind<3?"kaum Fahrtwind":"Fahrtwind "+de(v+wind,1)+" km/h";
+  $("windOut").textContent=v+wind<3?"kaum Fahrtwind":"Fahrtwind "+de(v+wind,1);
 }
 
 // ---- Bedienung ------------------------------------------------------------
@@ -684,8 +690,10 @@ function makeWheel(mountId,vals,fmt,onChange,color){
 const range=(a,b,st)=>{const o=[];for(let v=a;v<=b;v+=st)o.push(v);return o;};
 const windCol=v=>v>0?"var(--head)":v<0?"var(--tail)":"var(--ink)";
 const setWind=makeWheel("wWind",range(-15,30,1),v=>(v>0?"+":v<0?"−":"")+Math.abs(v),v=>{$("wind").value=v;ui();readout();},windCol);
-$("wWind").firstChild.insertAdjacentHTML("beforeend",'<div class="wtag t">↑ Rücken</div><div class="wtag b">↓ Gegen</div>');
+$("wWind").firstChild.insertAdjacentHTML("beforeend",'<div class="wtag t">Rück.</div><div class="wtag b">Gegen</div>');
 const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=v;ui();readout();});
+// Schrittfrequenz: "auto" folgt dem Tempo, sonst fester Wert. Wirkt nur auf die Figuren der Seitenansicht.
+const setCad=makeWheel("wCad",[0].concat(range(150,210,2)),v=>v?String(v):"auto",v=>{CAD=v;ui();});
 $("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
 
 // ---- Luftteilchen ---------------------------------------------------------
@@ -784,9 +792,13 @@ const RAD=Math.PI/180, HS=0.055, HEEL=0.07, BALL=0.2;        // Sohle unter dem 
 const SWING={jog:[[0.2,-0.453,-0.636],[0.45,-0.315,-0.524],[0.62,-0.117,-0.664],[0.82,0.17,-0.785],[0.93,0.23,-0.805]],
              fast:[[0.2,-0.59,-0.42],[0.45,-0.25,-0.32],[0.62,0.05,-0.56],[0.82,0.3,-0.73],[0.93,0.32,-0.775]]};
 const sstep=t=>{t=t<0?0:t>1?1:t; return t*t*(3-2*t);};
+// Schrittfrequenz in Schritten je Minute. CAD = 0 heißt automatisch: nach Fukuchi et al. steigt sie mit dem Tempo
+// nur wenig (162 bei 2,5 m/s, 172 bei 3,5 m/s, 184 bei 4,5 m/s), gedeckelt bei 190. Sonst gilt der eingestellte Wert.
+let CAD=0;
+function stepsPerMin(v){return CAD||2*Math.max(78,Math.min(95,81+5.5*(v-2.5)));}
 function gaitParams(v){
   const s=Math.max(0,Math.min(1,(v-2.5)/3.3));
-  const Tc=60/Math.max(78,Math.min(95,81+5.5*(v-2.5)));           // Doppelschritte je Minute nach Fukuchi et al., gedeckelt
+  const Tc=120/stepsPerMin(v);                                      // Dauer eines Doppelschritts
   const duty=Math.min(0.38-0.09*s,1.0/(Math.max(v,1)*Tc));          // Bodenkontakt höchstens 1 m Weg
   const Ls=v*duty*Tc, ts=duty*Tc, tf=(0.5-duty)*Tc;
   return {s,Tc,duty,Ls,h0:0.88,dip:Math.min(0.06,ts*9.81*tf/(2*Math.PI)),apex:9.81*tf*tf/8,
@@ -848,7 +860,7 @@ leg._ends=G=>{ if(G._e) return G._e; const sh=(p)=>{const f=stanceFoot(p/G.duty,
 const GCACHE={};
 // Pose für Phase ph (0 = nahes Bein setzt auf) und Tempo v in m/s. Alle Punkte [vor, hoch] in Metern.
 function pose(ph,v){
-  const key=Math.round(v*50), G=GCACHE[key]||(GCACHE[key]=gaitParams(key/50));
+  const vq=Math.round(v*50), key=vq+"_"+CAD, G=GCACHE[key]||(GCACHE[key]=gaitParams(vq/50));
   ph=((ph%1)+1)%1;
   const A=leg(ph,G), B=leg(ph+0.5,G), hz=hipHeight(ph,G), s=G.s;
   const lean=(5+4*s)*RAD, up=L=>[L*Math.sin(lean),hz+L*Math.cos(lean)];
@@ -856,7 +868,8 @@ function pose(ph,v){
   const arm=p=>{const cs=Math.cos(2*Math.PI*(p-G.duty-0.04)), al=amp*cs-5*RAD;         // vorn, wenn das eigene Bein hinten abstößt
     const el=[sh[0]+SEG.uarm*Math.sin(al),sh[1]-SEG.uarm*Math.cos(al)], b=al+(86+(16+10*s)*cs)*RAD;
     return {el,ha:[el[0]+SEG.farm*Math.sin(b),el[1]-SEG.farm*Math.cos(b)]};};
-  return {hip:[0,hz],chest:up(0.36),neck:up(SEG.torso),head:up(SEG.torso+0.175),sh,A,B,armN:arm(ph+0.5),armF:arm(ph),lean,Tc:G.Tc,duty:G.duty,G};
+  const hd=up(SEG.torso+0.17); hd[0]+=0.03;
+  return {hip:[0,hz],chest:up(0.36),neck:up(SEG.torso),neckLo:up(SEG.torso-0.03),neckHi:[hd[0]-0.04,hd[1]-0.065],head:hd,sh,A,B,armN:arm(ph+0.5),armF:arm(ph),lean,Tc:G.Tc,duty:G.duty,G};
 }
 // Figur zeichnen: X(p), Y(p) rechnen Meter in Bildpunkte um, k = Bildpunkte je Meter
 function drawRunnerFig(c,P,X,Y,k,col,faded){
@@ -890,7 +903,7 @@ function drawRunnerFig(c,P,X,Y,k,col,faded){
   const arm=(a,f)=>{taper(P.sh,a.el,0.047,0.036,dark(col.skin,f)); taper(a.el,a.ha,0.036,0.026,dark(col.skin,f)); fist(a.el,a.ha,f);
     cuff(P.sh,lerp(P.sh,a.el,0.42),0.058,0.054,dark(col.shirt,f),null);};
   arm(P.armF,0.62); leg(P.B,0.62);                                   // ferne Seite dunkler
-  taper(P.sh,P.neck,0.052,0.048,col.skin);
+  taper(P.neckLo,P.neckHi,0.058,0.05,dark(col.skin,0.92));           // Hals: aus dem Kragen schräg in die Schädelbasis
   taper(lerp(P.hip,P.chest,0.3),P.chest,0.108,0.122,col.shirt); taper(P.chest,P.sh,0.122,0.098,col.shirt);
   // Hose am Becken: gerader Bund quer zum Rumpf, darunter das Becken
   cuff(P.hip,lerp(P.hip,P.chest,0.36),0.108,0.11,col.shorts,dark(col.shorts,1.35));
@@ -938,7 +951,7 @@ function sideRunners(){
 }
 function sideParams(){
   const v=1000/(+$("pace").value), rel=v+(+$("wind").value)/3.6;            // m/s
-  const Tc=60/Math.max(78,Math.min(95,81+5.5*(v-2.5)));                    // Doppelschritte je Minute nach Fukuchi et al., gedeckelt
+  const Tc=120/stepsPerMin(v);                                             // Dauer eines Doppelschritts
   return {v,rel,Tc,dtp:DX*PAR2.U/Math.max(rel,0.5)};                       // dtp = Sekunden je Rechenschritt
 }
 let rateSm=0, lastSide=0;
@@ -1088,7 +1101,7 @@ function loop(){
   }
   requestAnimationFrame(loop);
 }
-sendSetup(); loadPreset("f1"); setWind(0); setPace(240); setView(false); loop();
+sendSetup(); loadPreset("f1"); setWind(0); setPace(240); setCad(0); setView(false); loop();
 </script>
 </body>
 </html>
