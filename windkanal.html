@@ -124,7 +124,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 32</div>
+    <div class="kicker">Testversion 33</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -159,7 +159,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
         <span style="display:block;margin-top:4px">unter 25 cm seitlich: mindestens 1,4 m längs<br>25 bis 45 cm: mindestens 0,5 m<br>45 bis 60 cm: mindestens 0,3 m<br>ab 60 cm: nebeneinander möglich</span>
         Die 1,4 m direkt hintereinander stammen aus dem Drohnenvideo der INEOS 1:59 Challenge: So weit liefen Kipchoge und der Pacer vor ihm auseinander, weil die Füße bei diesem Tempo weit nach vorn und hinten schwingen. Die Aufstellungen aus den Studien (1,2 und 1,3 m) bleiben als Knöpfe erhalten, auch wenn sie die Regel unterschreiten. Seitlich um 28 bis 31 cm versetzt liefen die Pacer dort nur 0,53 m hintereinander. Die Stufe 45 bis 60 cm ist eine eigene Annahme.</dd>
       <dt>Beste Aufstellungen</dt>
-      <dd>Die Knöpfe „Beste: 1 Pacer“, „Beste: 2“ und „Beste: 3“ sind das Ergebnis einer Suche über 2649 Aufstellungen mit der Abstandsregel. In allen drei Fällen läuft ein Pacer 1,4 m direkt vor dir. Weitere Pacer bringen im Modell am meisten schräg hinter dir, weil sich vor ihnen Luft staut und deinen Sog auffüllt. Diesen Effekt überschätzt das Modell: Im Vergleich mit der Studie liefert es für einen Pacer hinter dir 7,7 statt 5,5 Punkte. Der Wert für drei Pacer (rund 97 %) ist deshalb vermutlich deutlich zu hoch.</dd>
+      <dd>Die Knöpfe „Beste: 1 Pacer“, „Beste: 2“ und „Beste: 3“ sind das Ergebnis einer Suche über 2649 Aufstellungen mit der Abstandsregel. In allen drei Fällen läuft ein Pacer 1,4 m direkt vor dir. Weitere Pacer bringen im Modell am meisten schräg hinter dir, weil sich vor ihnen Luft staut und deinen Sog auffüllt. Diesen Effekt überschätzt das Modell: Im Vergleich mit der Studie liefert es für einen Pacer hinter dir 7,7 statt 5,5 Punkte. Der Wert für drei Pacer (rund 97 %) ist deshalb vermutlich deutlich zu hoch. Belastbarer sind die Knöpfe „Nur vorn: 2“ und „Nur vorn: 3“: die besten Aufstellungen, wenn niemand hinter dir läuft. Mit zwei Pacern sind das 76 %, mit dreien 81 %. Bei dreien läuft einer 1,4 m direkt vor dir, die beiden anderen 0,3 bis 0,5 m weiter vorn und 0,6 m seitlich.</dd>
       <dt>Gefühlter Wind</dt>
       <dd>So stark müsste der Fahrtwind im Alleinlauf sein, damit dich dieselbe Kraft bremst wie jetzt. Die Kraft wächst mit dem Quadrat des Winds, deshalb gilt: gefühlter Wind = Fahrtwind × Wurzel aus dem Rest-Widerstand. Beispiel: 70 % weniger Widerstand lässt 30 % übrig, die Wurzel daraus ist 0,55, bei 15 km/h sind das 8,2 km/h. Läufst du allein, steht dort dein voller Fahrtwind.</dd>
       <dt>Sekunden pro Kilometer</dt>
@@ -509,6 +509,9 @@ const PRESETS=[
   {k:"b1",t:"Beste: 1 Pacer",p:[[1.4,0]],note:"Suchergebnis: beste Aufstellung mit einem Pacer."},
   {k:"b2",t:"Beste: 2",p:[[1.4,0],[-0.7,-0.3]],note:"Suchergebnis: beste Aufstellung mit zwei Pacern."},
   {k:"b3",t:"Beste: 3",p:[[1.4,0],[-0.6,-0.3],[-0.6,0.3]],note:"Suchergebnis. Wert vermutlich zu hoch, siehe Erklärung."},
+  // dieselbe Suche, wenn niemand hinter dir laufen darf
+  {k:"v2",t:"Nur vorn: 2",p:[[1.4,-0.2],[1.7,0.3]],note:"Suchergebnis: beste Aufstellung mit zwei Pacern vor dir."},
+  {k:"v3",t:"Nur vorn: 3",p:[[1.4,0],[1.8,-0.6],[1.8,0.6]],note:"Suchergebnis: beste Aufstellung mit drei Pacern vor dir."},
   {k:"ineos",t:"INEOS-V",big:true,p:[[1.42,-0.05],[2.14,0.30],[2.67,0.61],[2.09,-0.47],[2.63,-0.75],[-2.20,0.23],[-2.16,-0.47]],
    note:"Gemessen im Drohnenvideo der INEOS 1:59 Challenge, Wien 2019."}
 ];
