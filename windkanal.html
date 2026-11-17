@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 42</div>
+    <div class="kicker">Testversion 43</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -935,8 +935,8 @@ function gaitParams(v){
   const duty=Math.min(0.38-0.09*s,1.0/(Math.max(v,1)*Tc));          // Bodenkontakt höchstens 1 m Weg
   const Ls=v*duty*Tc, ts=duty*Tc, tf=(0.5-duty)*Tc;
   const G={s,Tc,duty,Ls,h0:0.88,dip:Math.min(0.06,ts*9.81*tf/(2*Math.PI)),apex:9.81*tf*tf/8,
-          px:0.04+0.02*s,xtd:0.11+0.14*Ls,thTd:(-12+12*s)*RAD,
-          k0:22*RAD,kP:(40+5*s)*RAD,k1:(26-10*s)*RAD,thM:25*RAD,               // Kniebeugung: Aufsetzen, größte in der Stützphase, Abstoß
+          px:0.04+0.02*s,xtd:0.11+0.14*Ls,thTd:(-12+20*s)*RAD,sR:0.22,
+          k0:(22+6*Math.min(1,2*s))*RAD,kP:(40+5*s)*RAD,k1:(26-10*s)*RAD,thM:25*RAD,               // Kniebeugung: Aufsetzen, größte in der Stützphase, Abstoß
           keys:SWING.jog.map((k,i)=>k.map((a,j)=>a+(SWING.fast[i][j]-a)*s))};
   // Hüfthöhe so wählen, dass das Knie in der Stützphase höchstens kP gebeugt ist; die Ferse hebt dort ab, wo die Beugung am größten ist
   const L=SEG.thigh+SEG.shank, kf=q=>{const f=flatFoot(q/duty,G), dx=f.x-hipX(q,G), dz=hipHeight(q,G)-f.z; return 2*Math.acos(Math.min(1,Math.hypot(dx,dz)/L));};
@@ -951,6 +951,9 @@ function gaitParams(v){
   G.kH=m;
   // Die Stützpunkte vor dem Aufsetzen wurden für einen Aufsetzpunkt 0,11 + 0,14·Ls vor der Hüfte bestimmt: mitverschieben
   const sh=G.xtd-(0.11+0.14*Ls); G.keys=G.keys.map(k=>[k[0],k[1]+sh*sstep((k[0]-0.5)/0.42),k[2]]);
+  // Flacher Anflug: kurz vor dem Aufsetzen gleitet der Fuß schon fast mit der Straße mit, knapp über dem Boden.
+  // Bezug ist die rückwärts verlängerte Stützbewegung; der letzte gemessene Stützpunkt wird höchstens 3 bis 6 cm darüber gelassen.
+  const last=G.keys[G.keys.length-1], g1=stanceRel(-(1-last[0])*(1-duty),G); last[2]=Math.min(last[2],g1[1]+0.03+0.03*s);
   return G;
 }
 function hipHeight(ph,G){const q=((ph%0.5)+0.5)%0.5;
@@ -962,8 +965,11 @@ function hipX(ph,G){return ph<G.duty?G.px*Math.cos(Math.PI*ph/G.duty):-G.px*Math
 // Bis zur größten Kniebeugung rollt der Fuß über die Ferse auf die Sohle; danach hebt die Ferse genau so weit ab,
 // dass das Knie gleichmäßig bis zum Abstoß streckt (Abrollen über den Ballen). So knickt das Knie nicht nach.
 function flatFoot(s,G){
-  const gh=(G.xtd+G.px)-HEEL-G.Ls*s, th=s<0.18?G.thTd*(1-sstep(s/0.18)):0, c=Math.cos(th), sn=Math.sin(th);
-  return {x:gh+HEEL*c+HS*sn,z:-HEEL*sn+HS*c,th,gh};
+  // Aufsetzen: langsam über die Ferse (th < 0, Spitze oben), schnell über den Vorfuß (th > 0, Ferse oben). Der Fuß senkt sich
+  // gleich nach dem Aufsetzen zügig ab und fängt so den Stoß ab, bevor das Knie nachgibt; danach liegt die Sohle flach.
+  const gh=(G.xtd+G.px)-HEEL-G.Ls*s, sc=Math.max(0,s), th=sc<G.sR?G.thTd*(1-sc/G.sR)*(1-sc/G.sR)*(1+0.5*sc/G.sR):0, c=Math.cos(th), sn=Math.sin(th);
+  if(th>0) return {x:gh+HEEL+BALL-BALL*c+HS*sn,z:BALL*sn+HS*c,th,gh};                 // Drehpunkt Ballen
+  return {x:gh+HEEL*c+HS*sn,z:-HEEL*sn+HS*c,th,gh};                                    // Drehpunkt Ferse
 }
 // Kniebeugung des Standbeins nach der größten Beugung: streckt bis zum Abstoß durch, am Ende noch mit Schwung
 function stanceKnee(s,G){const x=Math.max(0,Math.min(1,(s-G.sH)/(1-G.sH))); return G.kH+(G.k1-G.kH)*(3*x*x-x*x*x)/2;}
@@ -987,9 +993,11 @@ function hermite(K,t,j,m0,m1){let i=0; while(i<K.length-2&&t>K[i+1][0]) i++;
   const sl=n=>n===0?m0:n===K.length-1?m1:(K[n+1][j]-K[n-1][j])/(K[n+1][0]-K[n-1][0]);
   const a=sl(i)*h,b=sl(i+1)*h,u2=u*u,u3=u2*u;
   return (2*u3-3*u2+1)*p1[j]+(u3-2*u2+u)*a+(-2*u3+3*u2)*p2[j]+(u3-u2)*b;}
+// Sprunggelenk der Stützphase relativ zum Hüftgelenk (auch für Zeiten kurz vor dem Aufsetzen und nach dem Abstoß)
+function stanceRel(p,G){const f=stanceFoot(p/G.duty,G); return [f.x-hipX(((p%1)+1)%1,G),f.z-hipHeight(p,G)];}
 function leg(ph,G,raw){
   ph=((ph%1)+1)%1; const d=G.duty, H=[hipX(ph,G),hipHeight(ph,G)];
-  const rel=p=>{const f=stanceFoot(p/d,G); return [f.x-hipX(((p%1)+1)%1,G),f.z-hipHeight(p,G)];};   // Stützphase relativ zum Hüftgelenk
+  const rel=p=>stanceRel(p,G);
   let ax,az,th;
   if(ph<=d){const f=stanceFoot(ph/d,G); ax=f.x; az=f.z; th=f.th;}
   else{
