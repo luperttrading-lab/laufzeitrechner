@@ -130,7 +130,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 46</div>
+    <div class="kicker">Testversion 47</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -185,7 +185,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Wirbel</dt>
       <dd>Der Schalter unter „Bild“ zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
-      <dd>Unter „Tempo + Wind“ stehen zwei Räder wie im Laufzeit-Rechner: senkrecht drehen, oder den Wert darüber oder darunter antippen. Beim Wind bedeutet Plus Gegenwind und Minus Rückenwind, darunter steht es ausgeschrieben. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
+      <dd>Unter „Tempo + Wind“ stehen zwei Räder wie im Laufzeit-Rechner: senkrecht drehen, oder den Wert darüber oder darunter antippen. Beim Wind bedeutet Plus Gegenwind und Minus Rückenwind, darunter steht es ausgeschrieben. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Beide Räder gehen bis 30 km/h. Ist der Rückenwind so schnell wie du oder schneller, bleibt kein Fahrtwind von vorn: dann gibt es keine Zahlen, die Seitenansicht zeigt ruhende Luft um dich. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
     </dl>
   </section>
 
@@ -680,7 +680,7 @@ function ui(){
   $("cadOut").textContent="Schritt "+de(v/3.6/(spm/60),2)+" m";
   $("windState").textContent=wind===0?"Windstille":Math.abs(wind)+" "+(wind>0?"Gegenwind":"Rückenwind");
   $("windState").style.color=windCol(wind);
-  $("windOut").textContent=v+wind<3?"kaum Fahrtwind":"Fahrtwind "+de(v+wind,1);
+  $("windOut").textContent=v+wind<=-3?"schiebt mit "+de(-(v+wind),1):v+wind<3?"kaum Fahrtwind":"Fahrtwind "+de(v+wind,1);
 }
 
 // ---- Bedienung ------------------------------------------------------------
@@ -809,7 +809,7 @@ function makeWheel(mountId,vals,fmt,onChange,color,mini){
 }
 const range=(a,b,st)=>{const o=[];for(let v=a;v<=b;v+=st)o.push(v);return o;};
 const windCol=v=>v>0?"var(--head)":v<0?"var(--tail)":"var(--ink)";
-const setWind=makeWheel("wWind",range(-15,30,1),v=>(v>0?"+":v<0?"−":"")+Math.abs(v),v=>{$("wind").value=v;ui();readout();},windCol);
+const setWind=makeWheel("wWind",range(-30,30,1),v=>(v>0?"+":v<0?"−":"")+Math.abs(v),v=>{$("wind").value=v;ui();readout();},windCol);
 $("wWind").firstChild.insertAdjacentHTML("beforeend",'<div class="wtag t">Rück.</div><div class="wtag b">Gegen</div>');
 const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=v;ui();readout();});
 // Schrittfrequenz: "auto" folgt dem Tempo, sonst fester Wert. Wirkt nur auf die Figuren der Seitenansicht.
@@ -1283,7 +1283,7 @@ function readout(){
   if(rel<3){
     $("busy").style.width="0";
     $("drag").textContent="–"; $("dragSub").textContent="Widerstand"; $("inflow").textContent="–"; $("inflowSub").textContent="gefühlter Wind";
-    $("result").textContent="Kaum Fahrtwind: Der Rückenwind ist so schnell wie du.";
+    $("result").textContent=rel<=-3?"Der Rückenwind ist "+de(-rel,1)+" km/h schneller als du: er schiebt.":"Kaum Fahrtwind: Der Rückenwind ist so schnell wie du.";
     st.textContent="Hier gilt das Modell nicht. Nimm weniger Rückenwind."; st.className="status warn"; return;
   }
   const Fs=KD*Math.pow(rel/3.6,2), Fn=Fs*(1-p);
