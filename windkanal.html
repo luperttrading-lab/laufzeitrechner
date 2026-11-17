@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 43</div>
+    <div class="kicker">Testversion 44</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -932,21 +932,21 @@ function stepsPerMin(v){return CAD||2*Math.max(78,Math.min(93,81+5.5*(v-2.5)));}
 function gaitParams(v){
   const s=Math.max(0,Math.min(1,(v-2.5)/3.3));
   const Tc=120/stepsPerMin(v);                                      // Dauer eines Doppelschritts
-  const duty=Math.min(0.38-0.09*s,1.0/(Math.max(v,1)*Tc));          // Bodenkontakt höchstens 1 m Weg
+  const duty=Math.min(0.38-0.09*s,(0.62+0.065*v)/(Math.max(v,1)*Tc));   // Bodenkontakt: Weg wächst mit dem Tempo, höchstens rund 1 m
   const Ls=v*duty*Tc, ts=duty*Tc, tf=(0.5-duty)*Tc;
   const G={s,Tc,duty,Ls,h0:0.88,dip:Math.min(0.06,ts*9.81*tf/(2*Math.PI)),apex:9.81*tf*tf/8,
           px:0.04+0.02*s,xtd:0.11+0.14*Ls,thTd:(-12+20*s)*RAD,sR:0.22,
-          k0:(22+6*Math.min(1,2*s))*RAD,kP:(40+5*s)*RAD,k1:(26-10*s)*RAD,thM:25*RAD,               // Kniebeugung: Aufsetzen, größte in der Stützphase, Abstoß
+          // Kniebeugung: Aufsetzen, größte in der Stützphase (bei kurzen Schritten weniger), Abstoß. thM: Mindest-Fersenhub, bei kurzen Schritten keiner
+          k0:(22+6*Math.min(1,2*s))*RAD,kP:(40+5*s-8*(1-sstep((Ls-0.45)/0.3)))*RAD,k1:(26-10*s)*RAD,thM:25*RAD*sstep((Ls-0.55)/0.25),
           keys:SWING.jog.map((k,i)=>k.map((a,j)=>a+(SWING.fast[i][j]-a)*s))};
   // Hüfthöhe so wählen, dass das Knie in der Stützphase höchstens kP gebeugt ist; die Ferse hebt dort ab, wo die Beugung am größten ist
   const L=SEG.thigh+SEG.shank, kf=q=>{const f=flatFoot(q/duty,G), dx=f.x-hipX(q,G), dz=hipHeight(q,G)-f.z; return 2*Math.acos(Math.min(1,Math.hypot(dx,dz)/L));};
-  // und den Aufsetzpunkt so, dass das Knie beim Aufsetzen k0 gebeugt ist (beides hängt voneinander ab, daher abwechselnd)
-  for(let r=0;r<6;r++){
-    let lo=0.75,hi=1.0;
-    for(let it=0;it<30;it++){G.h0=(lo+hi)/2; let m=0; for(let i=0;i<=60;i++) m=Math.max(m,kf(duty*i/60)); if(m>G.kP) lo=G.h0; else hi=G.h0;}
-    lo=0.0; hi=0.45;
-    for(let it=0;it<30;it++){G.xtd=(lo+hi)/2; if(kf(0)>G.k0) lo=G.xtd; else hi=G.xtd;}
-  }
+  // und den Aufsetzpunkt so, dass das Knie beim Aufsetzen k0 gebeugt ist. Beides hängt voneinander ab: zu jeder Hüfthöhe
+  // wird erst der Aufsetzpunkt bestimmt, dann die größte Beugung geprüft.
+  let hLo=0.75,hHi=1.0;
+  for(let it=0;it<26;it++){G.h0=(hLo+hHi)/2;
+    let lo=0.0, hi=0.45; for(let j=0;j<24;j++){G.xtd=(lo+hi)/2; if(kf(0)>G.k0) lo=G.xtd; else hi=G.xtd;}
+    let m=0; for(let i=0;i<=60;i++) m=Math.max(m,kf(duty*i/60)); if(m>G.kP) hLo=G.h0; else hHi=G.h0;}
   let m=-1; for(let i=0;i<=200;i++){const k=kf(duty*i/200); if(k>m){m=k; G.sH=i/200;}}
   G.kH=m;
   // Die Stützpunkte vor dem Aufsetzen wurden für einen Aufsetzpunkt 0,11 + 0,14·Ls vor der Hüfte bestimmt: mitverschieben
@@ -954,6 +954,8 @@ function gaitParams(v){
   // Flacher Anflug: kurz vor dem Aufsetzen gleitet der Fuß schon fast mit der Straße mit, knapp über dem Boden.
   // Bezug ist die rückwärts verlängerte Stützbewegung; der letzte gemessene Stützpunkt wird höchstens 3 bis 6 cm darüber gelassen.
   const last=G.keys[G.keys.length-1], g1=stanceRel(-(1-last[0])*(1-duty),G); last[2]=Math.min(last[2],g1[1]+0.03+0.03*s);
+  // Kein Stützpunkt darf weiter weg liegen, als das Bein lang ist (sehr lange Schritte)
+  G.keys.forEach(k=>{const r=Math.hypot(k[1],k[2]), mx=0.85; if(r>mx){k[1]*=mx/r; k[2]*=mx/r;}});
   return G;
 }
 function hipHeight(ph,G){const q=((ph%0.5)+0.5)%0.5;
@@ -971,8 +973,9 @@ function flatFoot(s,G){
   if(th>0) return {x:gh+HEEL+BALL-BALL*c+HS*sn,z:BALL*sn+HS*c,th,gh};                 // Drehpunkt Ballen
   return {x:gh+HEEL*c+HS*sn,z:-HEEL*sn+HS*c,th,gh};                                    // Drehpunkt Ferse
 }
-// Kniebeugung des Standbeins nach der größten Beugung: streckt bis zum Abstoß durch, am Ende noch mit Schwung
-function stanceKnee(s,G){const x=Math.max(0,Math.min(1,(s-G.sH)/(1-G.sH))); return G.kH+(G.k1-G.kH)*(3*x*x-x*x*x)/2;}
+// Kniebeugung des Standbeins nach der größten Beugung: streckt bis kurz vor dem Abstoß und beugt dann schon leicht für den Schwung
+function stanceKnee(s,G){const x=Math.max(0,Math.min(1,(s-G.sH)/(1-G.sH))), xm=0.85;
+  const f=x<xm?sstep(x/xm):1-0.15*Math.pow((x-xm)/(1-xm),2); return G.kH+(G.k1-G.kH)*f;}
 function stanceFoot(s,G){
   const f=flatFoot(s,G);
   if(G.sH===undefined) return f;
