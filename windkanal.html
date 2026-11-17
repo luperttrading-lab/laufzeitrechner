@@ -103,6 +103,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 .wcell{background:var(--tile);border:1px solid var(--line);border-radius:12px;padding:5px 4px 4px;min-width:0}
 .wlabel{font-size:.62rem;font-weight:700;letter-spacing:.02em;white-space:nowrap;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:3px;border-bottom:1px solid var(--line)}
 .wheel{position:relative;height:96px;overflow:hidden;touch-action:none;cursor:ns-resize}
+.wheel.mini{height:40px} .wheel.mini .wband{top:4px;left:5px;right:5px} .wheel.mini .witem{font-size:1.05rem}
 .wlist{will-change:transform}
 .witem{height:32px;line-height:32px;text-align:center;font-weight:800;font-size:1.2rem;white-space:nowrap;color:var(--ink)}
 .wband{position:absolute;left:6px;right:6px;top:32px;height:32px;border-top:1.5px solid var(--gold);border-bottom:1.5px solid var(--gold);pointer-events:none}
@@ -129,7 +130,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 45</div>
+    <div class="kicker">Testversion 46</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -174,7 +175,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Fahrtwind und mitgerissene Luft</dt>
       <dd>Beides ist dieselbe Strömung, nur anders betrachtet. Unter „Bild“ wechselst du die Sicht. Bei „Fahrtwind“ stehst du still und die Luft strömt an dir vorbei. Bei „Mitgerissene Luft“ steht die Luft, und du siehst, was die Läufer mit ihr machen: Vorn schieben sie sie weg, hinter sich reißen sie sie mit. Die dunkle, ruhige Zone der einen Sicht ist der Sog der anderen.</dd>
       <dt>Seitenansicht</dt>
-      <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren, je nach Gerät in Echtzeit oder leichter Zeitlupe. Unten rechts stehen die Zeitlupe und die Bilder pro Sekunde. Mit dem Drehrad „Bilder“ unter „Bild“ lässt sich die Bildrate begrenzen. Wind ändert den Schrittrhythmus der Figuren nicht, nur das Tempo der Luftteilchen. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Pacer, die höchstens 20 cm seitlich versetzt laufen, stehen voll in der Schnittebene. Weiter seitlich versetzte bremsen die Luft in diesem Bild nur teilweise: bei 30 cm zu zwei Dritteln, bei 60 cm zu einem Drittel, ab 90 cm gar nicht mehr. Sie sind entsprechend blasser gezeichnet. Diese Abstufung ist eine eigene Annahme.</dd>
+      <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren, je nach Gerät in Echtzeit oder leichter Zeitlupe. Unten rechts stehen die Zeitlupe und die Bilder pro Sekunde. Mit dem kleinen Drehrad „Bilder/s“ unter „Bild“ lässt sich die Bildrate begrenzen. Wind ändert den Schrittrhythmus der Figuren nicht, nur das Tempo der Luftteilchen. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Pacer, die höchstens 20 cm seitlich versetzt laufen, stehen voll in der Schnittebene. Weiter seitlich versetzte bremsen die Luft in diesem Bild nur teilweise: bei 30 cm zu zwei Dritteln, bei 60 cm zu einem Drittel, ab 90 cm gar nicht mehr. Sie sind entsprechend blasser gezeichnet. Diese Abstufung ist eine eigene Annahme.</dd>
       <dt>Laufstil der Figuren</dt>
       <dd>Der schnelle Laufstil ist aus einer Zeitlupenaufnahme von Eliud Kipchoge bei 2:52 min/km ausgemessen: Oberschenkel von 29° hinter bis 55° vor der Senkrechten, Knie bis 144° gebeugt, Ferse fast am Gesäß, Bodenkontakt 26 % des Doppelschritts. Der Oberarm pendelt hinter der Senkrechten. Für langsames Laufen gibt es keine solche Messung, dort gelten eigene Annahmen nach den Spitzenwerten von Fukuchi et al. Dazwischen wird nach Tempo gemischt.</dd>
       <dt>Schrittfrequenz</dt>
@@ -263,6 +264,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
     <div class="row">
       <button type="button" id="vTop" aria-pressed="true">Von oben</button>
       <button type="button" id="vSide" aria-pressed="false">Von der Seite</button>
+      <span class="small" style="font-weight:700;margin-left:auto">Bilder/s</span>
+      <div class="wcell" style="flex:0 0 62px;padding:0"><div id="wFps"></div></div>
     </div>
     <div class="row" id="slowRow" style="margin-top:8px">
       <span class="small" style="font-weight:700">Zeitlupe</span>
@@ -283,10 +286,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <button type="button" data-g="2" aria-pressed="true">10 cm</button>
       <button type="button" id="air" aria-pressed="true" style="margin-left:auto">Luft</button>
     </div>
-    <div style="display:flex;gap:10px;margin-top:8px;align-items:flex-start">
-      <div class="wcell" style="flex:0 0 92px"><div class="wlabel">Bilder · /s</div><div id="wFps"></div></div>
-      <div class="small" id="viewHint" style="white-space:normal;min-width:0"></div>
-    </div>
+    <div class="small" id="viewHint" style="margin-top:8px;white-space:normal"></div>
   </div>
   <div class="tabs" role="tablist">
     <button type="button" role="tab" data-t="form" aria-selected="true">Aufstellung</button>
@@ -767,14 +767,14 @@ $("bestV").onclick=()=>{bestVar="v"; const m=/^[va](\d+)$/.exec(preset); if(m) l
 $("bestA").onclick=()=>{bestVar="a"; const m=/^[va](\d+)$/.exec(preset); if(m) loadPreset("a"+m[1]); bestUI();};
 $("presets").addEventListener("click",ev=>{const b=ev.target.closest("button");if(b)loadPreset(b.dataset.k);});
 // Rad wie im Laufzeit-Rechner: senkrecht drehen, rastet ein. Tippen auf den oberen oder unteren Wert geht einen Schritt.
-function makeWheel(mountId,vals,fmt,onChange,color){
-  const ITEM=32, el=$(mountId), max=(vals.length-1)*ITEM;
-  el.innerHTML='<div class="wheel"><div class="wlist">'+vals.map(v=>'<div class="witem">'+fmt(v)+'</div>').join("")+'</div><div class="wband"></div></div>';
+function makeWheel(mountId,vals,fmt,onChange,color,mini){
+  const ITEM=32, el=$(mountId), max=(vals.length-1)*ITEM, OFF=mini?4:ITEM;      // mini: nur eine Zeile sichtbar
+  el.innerHTML='<div class="wheel'+(mini?" mini":"")+'"><div class="wlist">'+vals.map(v=>'<div class="witem">'+fmt(v)+'</div>').join("")+'</div><div class="wband"></div></div>';
   const wheel=el.firstChild, list=wheel.firstChild, items=list.children;
   let pos=0, cur=-1, anim=null;
   const clamp=y=>Math.max(0,Math.min(max,y)), idx=()=>Math.round(clamp(pos)/ITEM);
   function paint(){
-    list.style.transform="translateY("+(ITEM-pos)+"px)";
+    list.style.transform="translateY("+(OFF-pos)+"px)";
     const c=idx();
     for(let i=Math.max(0,c-3);i<=Math.min(vals.length-1,c+3);i++){const d=Math.abs(i*ITEM-pos)/ITEM, it=items[i];
       it.style.opacity=Math.max(0.32,1-d*0.5); it.style.transform="scale("+(d<0.5?1.14:0.88)+")"; it.style.color=d<0.5?(color?color(vals[i]):"var(--gold)"):"";}
@@ -804,7 +804,7 @@ function makeWheel(mountId,vals,fmt,onChange,color){
   wheel.addEventListener("pointerup",ev=>{if(down){down=false;end();}});
   wheel.addEventListener("wheel",ev=>{ev.preventDefault();glide(clamp((idx()+Math.sign(ev.deltaY))*ITEM));},{passive:false});
   // Tippen auf den Wert darüber oder darunter
-  wheel.addEventListener("click",ev=>{if(moved>6)return;const r=wheel.getBoundingClientRect(), row=Math.floor((ev.clientY-r.top)/ITEM)-1; if(row) glide(clamp((idx()+row)*ITEM));});
+  wheel.addEventListener("click",ev=>{if(moved>6)return;const r=wheel.getBoundingClientRect(), row=mini?(ev.clientY-r.top<r.height/2?-1:1):Math.floor((ev.clientY-r.top)/ITEM)-1; if(row) glide(clamp((idx()+row)*ITEM));});
   return v=>{stop(); pos=Math.max(0,vals.indexOf(v))*ITEM; paint();};
 }
 const range=(a,b,st)=>{const o=[];for(let v=a;v<=b;v+=st)o.push(v);return o;};
@@ -816,7 +816,7 @@ const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=
 const setCad=makeWheel("wCad",[0].concat(range(150,210,2)),v=>v?String(v):"auto",v=>{CAD=v;ui();});
 // Bildrate begrenzen: "max" zeichnet im Takt des Bildschirms, sonst höchstens so viele Bilder je Sekunde. Die Rechnung läuft unabhängig davon.
 let fpsCap=0, nextDraw=0, lastLoop=0;
-const setFps=makeWheel("wFps",[0,60,50,40,30,24,20,15],v=>v?String(v):"max",v=>{fpsCap=v; nextDraw=0;});
+const setFps=makeWheel("wFps",[0,60,50,40,30,24,20,15],v=>v?String(v):"max",v=>{fpsCap=v; nextDraw=0;},null,true);
 $("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
 
 // ---- Luftteilchen ---------------------------------------------------------
