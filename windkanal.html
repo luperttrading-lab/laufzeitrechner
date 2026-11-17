@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 37</div>
+    <div class="kicker">Testversion 38</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -179,6 +179,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dd>Der schnelle Laufstil ist aus einer Zeitlupenaufnahme von Eliud Kipchoge bei 2:52 min/km ausgemessen: Oberschenkel von 29° hinter bis 55° vor der Senkrechten, Knie bis 144° gebeugt, Ferse fast am Gesäß, Bodenkontakt 26 % des Doppelschritts. Der Oberarm pendelt hinter der Senkrechten. Für langsames Laufen gibt es keine solche Messung, dort gelten eigene Annahmen nach den Spitzenwerten von Fukuchi et al. Dazwischen wird nach Tempo gemischt.</dd>
       <dt>Schrittfrequenz</dt>
       <dd>Das dritte Rad unter „Tempo + Wind“. Voreingestellt sind 180 Schritte pro Minute, also 3 Schritte pro Sekunde. Bei höherem Tempo wird dann nur der Schritt länger. Bei „auto“ folgt sie dem Tempo nach den Messwerten von Fukuchi et al.: 162 Schritte pro Minute bei 9 km/h, 172 bei 12,6 km/h, 184 bei 16,2 km/h, höchstens 186. So viele hat Eliud Kipchoge in einer Seitenaufnahme bei 2:52 min/km. Sie steigt also nur wenig, das meiste Tempo kommt aus der Schrittlänge. Du kannst sie auch fest einstellen, dann wird bei höherem Tempo nur der Schritt länger. Sie wirkt nur auf die Figuren der Seitenansicht, nicht auf die Prozentzahlen.</dd>
+      <dt>Zeitlupe</dt>
+      <dd>In der Seitenansicht wird die Luft um die bewegten Arme und Beine laufend neu gerechnet. Das braucht viele Rechenschritte pro Sekunde, mehr als ein Handy in Echtzeit schafft. Deshalb laufen die Figuren auf „Auto“ so langsam, dass die Luft genau mitkommt. Unter „Bild“ bei „Zeitlupe“ stellst du das Tempo fest ein: Echtzeit, ×1,5 oder ×2 (halb so schnell). Schafft das Gerät die Luft dann nicht, läuft sie verzögert hinter den Figuren her, das Bild bleibt aber gleichmäßig. Unten rechts im Bild steht, was gerade gilt.</dd>
       <dt>Wirbel</dt>
       <dd>Der Schalter unter „Bild“ zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
@@ -261,6 +263,13 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
     <div class="row">
       <button type="button" id="vTop" aria-pressed="true">Von oben</button>
       <button type="button" id="vSide" aria-pressed="false">Von der Seite</button>
+    </div>
+    <div class="row" id="slowRow" style="margin-top:8px">
+      <span class="small" style="font-weight:700">Zeitlupe</span>
+      <button type="button" data-s="0" aria-pressed="true">Auto</button>
+      <button type="button" data-s="1" aria-pressed="false">Echtzeit</button>
+      <button type="button" data-s="1.5" aria-pressed="false">×1,5</button>
+      <button type="button" data-s="2" aria-pressed="false">×2</button>
     </div>
     <div class="row" style="margin-top:8px">
       <button type="button" id="vTunnel" aria-pressed="true">Fahrtwind</button>
@@ -667,6 +676,8 @@ function setView(r){road=r; $("vTunnel").setAttribute("aria-pressed",String(!r))
                              :"Du stehst, die Luft strömt an dir vorbei, wie im Windkanal. Dunkle Zonen sind Luft, die fast so schnell ist wie du.";
   for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;} readout();}
 $("vTunnel").onclick=()=>setView(false); $("vRoad").onclick=()=>setView(true);
+document.querySelectorAll("#slowRow [data-s]").forEach(b=>b.onclick=()=>{slowMode=+b.dataset.s; if(slowMode) slowFix=slowMode;
+  document.querySelectorAll("#slowRow [data-s]").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));});
 $("vTop").onclick=()=>enterSide(false); $("vSide").onclick=()=>enterSide(true);
 document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{grid=+b.dataset.g;document.querySelectorAll("[data-g]").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));});
 $("air").onclick=()=>{showAir=!showAir;$("air").setAttribute("aria-pressed",String(showAir));};
@@ -1029,7 +1040,7 @@ function sideParams(){
   // Dafür laufen die Luftteilchen im Bild um den Faktor air = Fahrtwind / Lauftempo schneller oder langsamer.
   return {v,rel,Tc,dtp:DXS*PAR2.U/Math.max(v,0.5),air:Math.max(0.3,Math.min(2.6,rel/Math.max(v,0.5)))};   // dtp = Sekunden je Rechenschritt
 }
-let lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0;
+let lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0, slowMode=0;   // slowMode 0 = automatisch, sonst feste Zeitlupe
 const SLOWS=[1,1.25,1.5,2,2.5,3,4,5,6,8,10,12];
 function sideStep(){
   const sp=sideParams(); if(sp.rel<0.8) return 0;
@@ -1048,7 +1059,8 @@ function sideStep(){
   // Zeitlupe wählen: so wenig wie das Gerät schafft, aber in festen Stufen und träge, damit das Tempo nicht schwankt
   if(n>0){const cap=Math.min(24,n*8/Math.max(0.3,performance.now()-t1)), raw=Math.max(1,dtR/sp.dtp/cap); rawSm+=0.015*(raw-rawSm);
     // breites Band: die Stufe wechselt nur, wenn das Gerät sie dauerhaft nicht schafft oder deutlich mehr könnte
-    if(rawSm>slowFix*1.12||rawSm<slowFix*0.6) slowFix=SLOWS.find(x=>x>=rawSm*1.05)||12;}
+    if(slowMode) slowFix=slowMode;                 // fest eingestellt: Figuren laufen so, die Luft kommt nach, so gut das Gerät kann
+    else if(rawSm>slowFix*1.12||rawSm<slowFix*0.6) slowFix=SLOWS.find(x=>x>=rawSm*1.05)||12;}
   slowAvg=slowFix;
   return Math.max(1,n);
 }
@@ -1130,8 +1142,11 @@ function drawSide(n){
   inn.forEach(r=>{const P=pose(sideT/sp.Tc+r.ph0,sp.v); drawFigure(P,r.along,r.me,false,cS);
     if(M.shown&&!vortex&&(r.me||r.along>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
-  cS.font="600 18px system-ui,sans-serif"; cS.textAlign="right"; cS.fillStyle="rgba(232,237,243,.75)";
-  cS.fillText("Längsschnitt durch dich · "+(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+" · "+Math.round(fpsSm)+" Bilder/s",cvS.width-18,cvS.height-8);
+  // Tempo-Anzeige gut lesbar unten rechts; kommt die Luft nicht hinterher, steht das dabei
+  const lag=simDebt>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
+  cS.font="700 34px system-ui,sans-serif"; cS.textAlign="right"; cS.textBaseline="middle";
+  const tw=cS.measureText(tx).width+28; cS.fillStyle="rgba(10,19,32,.85)"; cS.fillRect(cvS.width-tw-10,cvS.height-56,tw,48);
+  cS.fillStyle=lag?"#f0c269":"#e8edf3"; cS.fillText(tx,cvS.width-24,cvS.height-31); cS.textBaseline="alphabetic";
 }
 cvS.addEventListener("click",()=>warn("Pacer setzt und verschiebst du in der Ansicht von oben."));
 
