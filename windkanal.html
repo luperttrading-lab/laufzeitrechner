@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 39</div>
+    <div class="kicker">Testversion 40</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -305,7 +305,7 @@ function createSim(NX,NY,P){
   const N=NX*NY;
   const CX=[0,1,0,-1,0,1,-1,-1,1], CY=[0,0,1,0,-1,1,1,-1,-1];
   const WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36], OPP=[0,3,4,1,2,7,8,5,6];
-  let f=new Float32Array(9*N), g=new Float32Array(9*N);
+  let f=new Float64Array(9*N), g=new Float64Array(9*N);
   const body=new Uint8Array(N), ux=new Float32Array(N), uy=new Float32Array(N);
   const fx=new Float64Array(16), fy=new Float64Array(16);
   const por=P.porous?new Float32Array(N):null;      // Bremsfeld für Körper, die nur teilweise in der Rechenebene liegen oder Luft durchlassen
@@ -318,6 +318,7 @@ function createSim(NX,NY,P){
     for(let k=0;k<N;k++){const o=body[k], n=map[k];
       if(o&&!n){for(let i=0;i<9;i++)f[i*N+k]=feq(i,1,0,0);ux[k]=0;uy[k]=0;}
       body[k]=n; if(n){ux[k]=0;uy[k]=0;}}
+    fastOk=false;
   }
   function setBodies(list){
     const old=body.slice(); body.fill(0); if(por){por.fill(0); pid.fill(0);}
@@ -330,55 +331,60 @@ function createSim(NX,NY,P){
         }});
     for(let k=0;k<N;k++) if(old[k]&&!body[k]){for(let i=0;i<9;i++)f[i*N+k]=feq(i,1,0,0);ux[k]=0;uy[k]=0;}
       else if(body[k]){ux[k]=0;uy[k]=0;}
+    fastOk=false;
   }
   const walls=!!P.walls;
+  // Zellen, deren Nachbarn alle frei sind und die nicht am Rand liegen, strömen ohne jede Prüfung (schneller Weg)
+  const fast=new Uint8Array(N); let fastOk=false;
+  function markFast(){
+    for(let y=0;y<NY;y++) for(let x=0;x<NX;x++){const k=y*NX+x; let ok=x>0&&x<NX-1&&y>0&&y<NY-1&&!body[k];
+      if(ok) for(let i=1;i<9;i++) if(body[k+CX[i]+CY[i]*NX]){ok=false;break;}
+      fast[k]=ok?1:0;}
+    fastOk=true;
+  }
+  const O1=1,O2=NX,O3=-1,O4=-NX,O5=1+NX,O6=-1+NX,O7=-1-NX,O8=1-NX;
   function step(){
+    if(!fastOk) markFast();
     fx.fill(0); fy.fill(0);
     const tau0=0.5+3*P.nu, U=P.U, lam=P.lam, mu=P.mu||0, sm=18*Math.SQRT2*P.cs*P.cs, t02=tau0*tau0;
-    const N2=2*N,N3=3*N,N4=4*N,N5=5*N,N6=6*N,N7=7*N,N8=8*N;
+    const N2=2*N,N3=3*N,N4=4*N,N5=5*N,N6=6*N,N7=7*N,N8=8*N, F=f, Gb=g, B=body, FA=fast, PO=por, PI=pid;
+    // Stoßen und Strömen in einem Durchgang: jede Zelle rechnet ihre neuen Werte und schiebt sie direkt zum Nachbarn
     for(let k=0;k<N;k++){
-      if(body[k]) continue;
-      const f0=f[k],f1=f[N+k],f2=f[N2+k],f3=f[N3+k],f4=f[N4+k],f5=f[N5+k],f6=f[N6+k],f7=f[N7+k],f8=f[N8+k];
-      const r=f0+f1+f2+f3+f4+f5+f6+f7+f8;
-      const u=(f1-f3+f5-f6-f7+f8)/r, v=(f2-f4+f5+f6-f7-f8)/r;
+      if(B[k]) continue;
+      const f0=F[k],f1=F[N+k],f2=F[N2+k],f3=F[N3+k],f4=F[N4+k],f5=F[N5+k],f6=F[N6+k],f7=F[N7+k],f8=F[N8+k];
+      const r=f0+f1+f2+f3+f4+f5+f6+f7+f8, ir=1/r;
+      const u=(f1-f3+f5-f6-f7+f8)*ir, v=(f2-f4+f5+f6-f7-f8)*ir;
       ux[k]=u; uy[k]=v;
       const us=1-1.5*(u*u+v*v), a=3*u, b=3*v, c=a+b, d=b-a;
-      const q9=r/9, q36=r/36;
-      const e0=4*q9*us, e1=q9*(us+a+0.5*a*a), e3=q9*(us-a+0.5*a*a), e2=q9*(us+b+0.5*b*b), e4=q9*(us-b+0.5*b*b);
-      const e5=q36*(us+c+0.5*c*c), e7=q36*(us-c+0.5*c*c), e6=q36*(us+d+0.5*d*d), e8=q36*(us-d+0.5*d*d);
+      const q9=r/9, q36=r/36, ha=0.5*a*a, hb=0.5*b*b, hc=0.5*c*c, hd=0.5*d*d;
       // Wirbelviskosität nach Smagorinsky aus dem Nichtgleichgewichts-Spannungstensor
-      const n1=f1-e1,n2=f2-e2,n3=f3-e3,n4=f4-e4,n5=f5-e5,n6=f6-e6,n7=f7-e7,n8=f8-e8;
+      const n1=f1-q9*(us+a+ha),n2=f2-q9*(us+b+hb),n3=f3-q9*(us-a+ha),n4=f4-q9*(us-b+hb);
+      const n5=f5-q36*(us+c+hc),n6=f6-q36*(us+d+hd),n7=f7-q36*(us-c+hc),n8=f8-q36*(us-d+hd);
       const pxx=n1+n3+n5+n6+n7+n8, pyy=n2+n4+n5+n6+n7+n8, pxy=n5-n6+n7-n8;
-      const tau=0.5*(tau0+Math.sqrt(t02+sm*Math.sqrt(pxx*pxx+pyy*pyy+2*pxy*pxy)/r)), om=1/tau;
+      const tau=0.5*(tau0+Math.sqrt(t02+sm*Math.sqrt(pxx*pxx+pyy*pyy+2*pxy*pxy)*ir)), om=1/tau;
       // Ersatz für die dritte Dimension: Luft von oben füllt langsame Zonen wieder auf
-      const pd=por?por[k]:0, u2=u-tau*(lam+pd)*u, v2=v+tau*lam*(U-v)-tau*pd*v;   // pd: durchlässiger Körper bremst die Luft
-      if(pd>0&&pid[k]){fx[pid[k]]+=r*pd*u; fy[pid[k]]+=r*pd*v;}                 // dabei entzogener Impuls = Kraft auf diesen Läufer
+      const pd=PO?PO[k]:0, u2=u-tau*(lam+pd)*u, v2=v+tau*lam*(U-v)-tau*pd*v;   // pd: durchlässiger Körper bremst die Luft
+      if(pd>0&&PI[k]){fx[PI[k]]+=r*pd*u; fy[PI[k]]+=r*pd*v;}                    // dabei entzogener Impuls = Kraft auf diesen Läufer
       const vs=1-1.5*(u2*u2+v2*v2), a2=3*u2, b2=3*v2, c2=a2+b2, d2=b2-a2;
       // Druckausgleich nach oben: Überdruck entweicht, Unterdruck wird aufgefüllt
-      const rr=r+tau*mu*(1-r), r9=rr/9, r36=rr/36;
-      f[k]    =f0-om*(f0-4*r9*vs);
-      f[N+k]  =f1-om*(f1-r9*(vs+a2+0.5*a2*a2));
-      f[N3+k] =f3-om*(f3-r9*(vs-a2+0.5*a2*a2));
-      f[N2+k] =f2-om*(f2-r9*(vs+b2+0.5*b2*b2));
-      f[N4+k] =f4-om*(f4-r9*(vs-b2+0.5*b2*b2));
-      f[N5+k] =f5-om*(f5-r36*(vs+c2+0.5*c2*c2));
-      f[N7+k] =f7-om*(f7-r36*(vs-c2+0.5*c2*c2));
-      f[N6+k] =f6-om*(f6-r36*(vs+d2+0.5*d2*d2));
-      f[N8+k] =f8-om*(f8-r36*(vs-d2+0.5*d2*d2));
-    }
-    // Strömen; an Körpern prallen die Teilchen zurück und übertragen Impuls (= Kraft auf den Körper)
-    for(let y=0;y<NY;y++){
-      const row=y*NX;
-      for(let x=0;x<NX;x++){
-        const k=row+x; if(body[k]) continue;
-        g[k]=f[k];
-        for(let i=1;i<9;i++){
-          const yn=y+CY[i]; if(yn<0||yn>=NY) continue;
-          let xn=x+CX[i]; if(xn<0){if(walls)continue; xn+=NX;} else if(xn>=NX){if(walls)continue; xn-=NX;}
-          const kn=yn*NX+xn, v=f[i*N+k], b=body[kn];
-          if(b){g[OPP[i]*N+k]=v; fx[b]+=2*v*CX[i]; fy[b]+=2*v*CY[i];}
-          else g[i*N+kn]=v;
-        }
+      const rr=r+tau*mu*(1-r), r9=rr/9, r36=rr/36, ha2=0.5*a2*a2, hb2=0.5*b2*b2, hc2=0.5*c2*c2, hd2=0.5*d2*d2;
+      const p0=f0-om*(f0-4*r9*vs), p1=f1-om*(f1-r9*(vs+a2+ha2)), p3=f3-om*(f3-r9*(vs-a2+ha2)),
+            p2=f2-om*(f2-r9*(vs+b2+hb2)), p4=f4-om*(f4-r9*(vs-b2+hb2)), p5=f5-om*(f5-r36*(vs+c2+hc2)),
+            p7=f7-om*(f7-r36*(vs-c2+hc2)), p6=f6-om*(f6-r36*(vs+d2+hd2)), p8=f8-om*(f8-r36*(vs-d2+hd2));
+      Gb[k]=p0;
+      if(FA[k]){
+        Gb[N+k+O1]=p1; Gb[N2+k+O2]=p2; Gb[N3+k+O3]=p3; Gb[N4+k+O4]=p4;
+        Gb[N5+k+O5]=p5; Gb[N6+k+O6]=p6; Gb[N7+k+O7]=p7; Gb[N8+k+O8]=p8;
+        continue;
+      }
+      // langsamer Weg am Rand und neben Körpern: dort prallen die Teilchen zurück und übertragen Impuls (= Kraft auf den Körper)
+      const x=k%NX, y=(k-x)/NX, pv=[p0,p1,p2,p3,p4,p5,p6,p7,p8];
+      for(let i=1;i<9;i++){
+        const yn=y+CY[i]; if(yn<0||yn>=NY) continue;
+        let xn=x+CX[i]; if(xn<0){if(walls)continue; xn+=NX;} else if(xn>=NX){if(walls)continue; xn-=NX;}
+        const kn=yn*NX+xn, w=pv[i], bb=B[kn];
+        if(bb){Gb[OPP[i]*N+k]=w; fx[bb]+=2*w*CX[i]; fy[bb]+=2*w*CY[i];}
+        else Gb[i*N+kn]=w;
       }
     }
     if(walls){                          // Boden (x=0) läuft mit Ug mit, Decke (x=NX-1) mit der freien Strömung
@@ -523,6 +529,40 @@ try{
   worker.onmessage=onWorker; workerReal=true;
   worker.onerror=()=>{ if(!workerReal) return; workerReal=false; worker=localWorker(); if(lastSetup) post(lastSetup); post({cmd:"bodies",id:cfgId,list:bodyList()}); };
 }catch(err){worker=localWorker(); workerReal=false;}
+// Seitenansicht: die Luft rechnet in einem eigenen Worker, damit sie einen ganzen Prozessorkern bekommt.
+// Das Hauptprogramm schickt je Bild die Körperkarte und die geschuldeten Rechenschritte, der Worker rechnet sie ab, so schnell er kann.
+function sideWorkerFn(self,createSim){
+  let sim=null, debt=0, running=false; const CAP=40, ch=new MessageChannel();
+  ch.port1.onmessage=run;
+  function run(){
+    if(!sim){running=false; return;}
+    const t0=performance.now(); let n=0;
+    while(debt>=1&&performance.now()-t0<14){sim.step(); n++; debt--;}
+    const ms=performance.now()-t0; let reset=false;
+    if(sim.ux[sim.NX*5+5]!==sim.ux[sim.NX*5+5]){sim.reset(); reset=true;}
+    const ux=sim.ux.slice(), uy=sim.uy.slice();
+    self.postMessage({ux,uy,n,ms,debt,reset},[ux.buffer,uy.buffer]);
+    if(debt>=1) ch.port2.postMessage(0); else running=false;
+  }
+  self.onmessage=e=>{const d=e.data;
+    if(d.cmd==="init"){sim=createSim(d.NX,d.NY,d.P); debt=0;}
+    else if(d.cmd==="frame"&&sim){sim.setMap(d.map); sim.por.set(d.por); sim.P.Ug=d.Ug;
+      debt=Math.min(CAP,debt+d.add); if(!running&&debt>=1){running=true; ch.port2.postMessage(0);}}
+  };
+}
+let sideWk=null, sideRecv=0, sideRate=0, sideDebtW=0;
+function startSideWorker(){
+  if(sideWk!==null) return;
+  try{
+    const src=createSim.toString()+"\n("+sideWorkerFn.toString()+")(self,createSim);";
+    sideWk=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
+    sideWk.onmessage=e=>{const d=e.data; sim2.ux=d.ux; sim2.uy=d.uy; sideRecv+=d.n; sideDebtW=d.debt;
+      if(d.n>=4&&d.ms>0){const r=d.n/d.ms*1000; sideRate=sideRate?sideRate+0.1*(r-sideRate):r;}
+      if(d.reset) sideT=0;};
+    sideWk.onerror=()=>{sideWk=false; sim2=createSim(NX2,NY2,PAR2);};   // ohne Worker rechnet das Hauptprogramm wie bisher
+    sideWk.postMessage({cmd:"init",NX:NX2,NY:NY2,P:PAR2});
+  }catch(err){sideWk=false;}
+}
 function bodyList(){return [me].concat(pacers).map(q=>({x:q.x,y:q.y,a:q.a,b:q.b}));}
 function sendSetup(){lastSetup={cmd:"setup",id:++cfgId,NX,NY,F0,F0c:sizeIx?0.0467630607932806:0.04675140631198883,list:bodyList()}; resetMirror(); post(lastSetup);}
 document.addEventListener("visibilitychange",()=>post({cmd:"pause",on:paused||document.hidden}));
@@ -1074,7 +1114,7 @@ function sideParams(){
   // Dafür laufen die Luftteilchen im Bild um den Faktor air = Fahrtwind / Lauftempo schneller oder langsamer.
   return {v,rel,Tc,dtp:DXS*PAR2.U/Math.max(v,0.5),air:Math.max(0.3,Math.min(2.6,rel/Math.max(v,0.5)))};   // dtp = Sekunden je Rechenschritt
 }
-let lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0, slowMode=0;   // slowMode 0 = automatisch, sonst feste Zeitlupe
+let lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0, slowMode=0, nSm=8;   // slowMode 0 = automatisch, sonst feste Zeitlupe
 const SLOWS=[1,1.25,1.5,2,2.5,3,4,5,6,8,10,12];
 function sideStep(){
   const sp=sideParams(); if(sp.rel<0.8) return 0;
@@ -1086,10 +1126,20 @@ function sideStep(){
   map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); sim2.setMap(map2);
   pmap.fill(0); O.forEach((r,j)=>rasterRunner(pmap,pose(sideT/sp.Tc+r.ph0,sp.v),j+1,r.along));          // schwächste zuerst, die stärkste gewinnt
   for(let k=0;k<pmap.length;k++) sim2.por[k]=pmap[k]?PDMAX*sideW(O[pmap[k]-1].lat):0;
+  fpsSm+=0.05*(1/dtR-fpsSm);
+  if(sideWk){                                                       // Worker: Karte und geschuldete Schritte hinschicken
+    const add=Math.floor(simDebt); simDebt-=add; const m=map2.slice(), po=sim2.por.slice();
+    sideWk.postMessage({cmd:"frame",map:m,por:po,Ug:PAR2.Ug,add},[m.buffer,po.buffer]);
+    const got=sideRecv; sideRecv=0; nSm+=0.25*(got-nSm);
+    // Zeitlupe wählen: Bedarf an Schritten je Sekunde gegen das, was der Worker schafft (mit 10 % Reserve)
+    if(sideRate>0){const raw=Math.max(1,1/sp.dtp/(0.9*sideRate)); rawSm+=0.015*(raw-rawSm);
+      if(slowMode) slowFix=slowMode; else if(rawSm>slowFix*1.12||rawSm<slowFix*0.6) slowFix=SLOWS.find(x=>x>=rawSm*1.05)||12;}
+    slowAvg=slowFix;
+    return Math.max(0.5,nSm);
+  }
   let n=0; const t1=performance.now();
   while(simDebt>=1&&n<24&&performance.now()-t1<8){sim2.step(); n++; simDebt--;}
   if(sim2.ux[NX2*5+5]!==sim2.ux[NX2*5+5]){sim2.reset(); sideT=0;}          // Rechnung entgleist: neu starten
-  fpsSm+=0.05*(1/dtR-fpsSm);
   // Zeitlupe wählen: so wenig wie das Gerät schafft, aber in festen Stufen und träge, damit das Tempo nicht schwankt
   if(n>0){const cap=Math.min(24,n*8/Math.max(0.3,performance.now()-t1)), raw=Math.max(1,dtR/sp.dtp/cap); rawSm+=0.015*(raw-rawSm);
     // breites Band: die Stufe wechselt nur, wenn das Gerät sie dauerhaft nicht schafft oder deutlich mehr könnte
@@ -1102,7 +1152,7 @@ function enterSide(on){
   sideView=on; $("vTop").setAttribute("aria-pressed",String(!on)); $("vSide").setAttribute("aria-pressed",String(on));
   cv.hidden=on; cvS.hidden=!on; const st=document.querySelector(".stage");
   st.classList.toggle("side",on);
-  if(on){ if(!sim2){sim2=createSim(NX2,NY2,PAR2); map2=new Uint8Array(NX2*NY2); pmap=new Uint8Array(NX2*NY2);}
+  if(on){ if(!sim2){sim2=createSim(NX2,NY2,PAR2); map2=new Uint8Array(NX2*NY2); pmap=new Uint8Array(NX2*NY2);} startSideWorker();
     for(let i=0;i<NP2;i++){qx[i]=1+Math.random()*(NX2-2); qy[i]=Math.random()*NY2;}
     st.style.maxWidth=""; st.classList.remove("tiny"); }
   else setZoom(zoom);
@@ -1177,7 +1227,7 @@ function drawSide(n){
     if(M.shown&&!vortex&&(r.me||r.along>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
   // Tempo-Anzeige gut lesbar unten rechts; kommt die Luft nicht hinterher, steht das dabei
-  const lag=simDebt>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
+  const lag=(sideWk?sideDebtW:simDebt)>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
   cS.font="700 34px system-ui,sans-serif"; cS.textAlign="right"; cS.textBaseline="middle";
   const tw=cS.measureText(tx).width+28; cS.fillStyle="rgba(10,19,32,.85)"; cS.fillRect(cvS.width-tw-10,cvS.height-56,tw,48);
   cS.fillStyle=lag?"#f0c269":"#e8edf3"; cS.fillText(tx,cvS.width-24,cvS.height-31); cS.textBaseline="alphabetic";
