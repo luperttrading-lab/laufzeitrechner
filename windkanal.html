@@ -73,6 +73,11 @@ button[aria-pressed="true"],button[aria-selected="true"]{background:var(--ink);c
 button:disabled{opacity:.4;cursor:default}
 button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .pane{min-height:88px;padding:8px 0 10px}
+.bestrow{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:.78rem;font-weight:700;color:var(--muted)}
+.bestrow>span{flex:none;width:62px}
+.bestrow button{padding:6px 9px;font-size:.78rem}
+.bestn{flex:1;display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
+.bestn button{padding:6px 0;font-size:.82rem;font-weight:800}
 .pane[hidden]{display:none}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;touch-action:pan-x;overscroll-behavior:contain}
 .chips button{flex:none}
@@ -124,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 34</div>
+    <div class="kicker">Testversion 35</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -159,7 +164,9 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
         <span style="display:block;margin-top:4px">unter 25 cm seitlich: mindestens 1,4 m längs<br>25 bis 45 cm: mindestens 0,5 m<br>45 bis 60 cm: mindestens 0,3 m<br>ab 60 cm: nebeneinander möglich</span>
         Die 1,4 m direkt hintereinander stammen aus dem Drohnenvideo der INEOS 1:59 Challenge: So weit liefen Kipchoge und der Pacer vor ihm auseinander, weil die Füße bei diesem Tempo weit nach vorn und hinten schwingen. Die Aufstellungen aus den Studien (1,2 und 1,3 m) bleiben als Knöpfe erhalten, auch wenn sie die Regel unterschreiten. Seitlich um 28 bis 31 cm versetzt liefen die Pacer dort nur 0,53 m hintereinander. Die Stufe 45 bis 60 cm ist eine eigene Annahme.</dd>
       <dt>Beste Aufstellungen</dt>
-      <dd>Die Knöpfe „Beste: 1 Pacer“, „Beste: 2“ und „Beste: 3“ sind das Ergebnis einer Suche über 2649 Aufstellungen mit der Abstandsregel. In allen drei Fällen läuft ein Pacer 1,4 m direkt vor dir. Weitere Pacer bringen im Modell am meisten schräg hinter dir, weil sich vor ihnen Luft staut und deinen Sog auffüllt. Diesen Effekt überschätzt das Modell: Im Vergleich mit der Studie liefert es für einen Pacer hinter dir 7,7 statt 5,5 Punkte. Der Wert für drei Pacer (rund 97 %) ist deshalb vermutlich deutlich zu hoch. Belastbarer sind die Knöpfe „Nur vorn: 2“ und „Nur vorn: 3“: die besten Aufstellungen, wenn niemand hinter dir läuft. Mit zwei Pacern sind das 76 %, mit dreien 81 %. Bei dreien läuft einer 1,4 m direkt vor dir, die beiden anderen 0,3 bis 0,5 m weiter vorn und 0,6 m seitlich.</dd>
+      <dd>Unter „Aufstellung“ wählst du mit den Zahlen 1 bis 10 die beste gefundene Aufstellung mit so vielen Pacern, wahlweise nur vor dir oder auch hinter dir. Gefunden hat sie eine Suche mit der Abstandsregel: Für jeden weiteren Pacer wurde jeder erlaubte Platz im 20-cm-Raster probiert, danach wurden alle Pacer noch einmal verschoben. Es ist deshalb die beste Aufstellung, die schrittweise entsteht, nicht sicher die beste überhaupt.
+        <span style="display:block;margin-top:4px">Nur vor dir: 66, 77, 81, 82, 82, 82, 83, 84, 84, 84 % für 1 bis 10 Pacer.<br>Auch hinter dir: 66, 73, 87, 88, 91, 95, 97, 98, 98, 98 %.</span>
+        Nur vor dir ist ab vier Pacern kaum noch etwas zu holen, das passt zu den etwa 85 %, die da Silva et al. als Grenze nennen. Mit Läufern hinter dir steigen die Werte bis 98 %. Das halte ich trotz der Korrektur für überschätzt: Die Korrektur ist an einem einzelnen Pacer 1,2 m hinter dir geeicht, hier laufen bis zu sieben Läufer dicht hinter dir.</dd>
       <dt>Gefühlter Wind</dt>
       <dd>So stark müsste der Fahrtwind im Alleinlauf sein, damit dich dieselbe Kraft bremst wie jetzt. Die Kraft wächst mit dem Quadrat des Winds, deshalb gilt: gefühlter Wind = Fahrtwind × Wurzel aus dem Rest-Widerstand. Beispiel: 70 % weniger Widerstand lässt 30 % übrig, die Wurzel daraus ist 0,55, bei 15 km/h sind das 8,2 km/h. Läufst du allein, steht dort dein voller Fahrtwind.</dd>
       <dt>Sekunden pro Kilometer</dt>
@@ -214,7 +221,15 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
   </div>
   <div class="pane" id="pane-form">
     <div class="chips" id="presets"></div>
-    <div class="small">Wische die Reihe nach links für weitere Aufstellungen.</div>
+    <div class="bestrow">
+      <span>Beste mit</span>
+      <div class="bestn" id="bestN"></div>
+    </div>
+    <div class="bestrow" style="margin-top:4px">
+      <span>Pacern</span>
+      <button type="button" id="bestV" aria-pressed="true">nur vor dir</button>
+      <button type="button" id="bestA" aria-pressed="false">auch hinter dir</button>
+    </div>
   </div>
   <div class="pane" id="pane-pacer" hidden>
     <div class="prow">
@@ -518,13 +533,28 @@ const PRESETS=[
   {k:"chain5",t:"Fünferkette",p:[[1.2,0],[-1.2,0],[-2.4,0],[-3.6,0]],ref:63.3,src:"Beaumont et al."},
   // Rumpfmitten im Drohnenvideo der INEOS 1:59 Challenge gemessen (Wien 2019, Mittel aus zwei Einzelbildern).
   // Braucht das große Feld, weil die vordersten Pacer 2,7 m vor dir laufen.
-  // Ergebnis einer Suche über 2649 Aufstellungen mit der Abstandsregel (1,4 m direkt hintereinander)
-  {k:"b1",t:"Beste: 1 Pacer",p:[[1.4,0]],note:"Suchergebnis: beste Aufstellung mit einem Pacer."},
-  {k:"b2",t:"Beste: 2",p:[[1.4,0],[-0.7,-0.3]],note:"Suchergebnis: beste Aufstellung mit zwei Pacern."},
-  {k:"b3",t:"Beste: 3",p:[[1.4,0],[-0.6,-0.3],[-0.6,0.3]],note:"Suchergebnis. Wert vermutlich zu hoch, siehe Erklärung."},
-  // dieselbe Suche, wenn niemand hinter dir laufen darf
-  {k:"v2",t:"Nur vorn: 2",p:[[1.4,-0.2],[1.7,0.3]],note:"Suchergebnis: beste Aufstellung mit zwei Pacern vor dir."},
-  {k:"v3",t:"Nur vorn: 3",p:[[1.4,0],[1.8,-0.6],[1.8,0.6]],note:"Suchergebnis: beste Aufstellung mit drei Pacern vor dir."},
+  // Ergebnisse der Suche mit 1 bis 10 Pacern (korrigiertes Modell, Abstandsregel 1,4 m), v = nur vor dir, a = auch hinter dir.
+  // Sie erscheinen nicht als Knöpfe in der Reihe, sondern über die Zahlen 1 bis 10 darunter.
+  {k:"v1",hide:true,p:[[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 1 Pacer vor dir (66,3 % in der Suche)."},
+  {k:"v2",hide:true,p:[[1.7,-0.5],[1.4,0.1]],note:"Suchergebnis: beste Aufstellung mit 2 Pacern vor dir (76,8 % in der Suche)."},
+  {k:"v3",hide:true,p:[[1.8,0.6],[1.7,-0.5],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 3 Pacern vor dir (81,1 % in der Suche)."},
+  {k:"v4",hide:true,big:true,p:[[2.4,-1.2],[1.8,0.6],[1.7,-0.5],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 4 Pacern vor dir (82,3 % in der Suche)."},
+  {k:"v5",hide:true,big:true,p:[[3.6,0.6],[2,-1],[1.8,0.6],[1.7,-0.5],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 5 Pacern vor dir (82,2 % in der Suche)."},
+  {k:"v6",hide:true,big:true,p:[[3.6,0.6],[3.6,-1],[2,-1],[1.8,0.6],[1.7,-0.5],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 6 Pacern vor dir (82,4 % in der Suche)."},
+  {k:"v7",hide:true,big:true,p:[[3.6,0.5],[3.6,-1.1],[2,-1],[1.8,1.2],[1.7,-0.5],[1.6,0.6],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 7 Pacern vor dir (83,4 % in der Suche)."},
+  {k:"v8",hide:true,big:true,p:[[3.6,0.5],[3.6,-1.1],[3.4,1.4],[2.2,-1],[1.7,-0.5],[1.7,1.2],[1.6,0.6],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 8 Pacern vor dir (83,5 % in der Suche)."},
+  {k:"v9",hide:true,big:true,p:[[3.6,0.5],[3.6,-1.1],[3.4,1.4],[2.8,-1.4],[2.2,-1],[1.7,-0.5],[1.7,1.2],[1.6,0.6],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 9 Pacern vor dir (83,7 % in der Suche)."},
+  {k:"v10",hide:true,big:true,p:[[3.6,0.5],[3.6,-1.1],[3.4,1.4],[2.8,-1.4],[2.2,-1],[1.7,-0.5],[1.7,1.2],[1.6,0.6],[1.4,0],[1.4,-1.4]],note:"Suchergebnis: beste Aufstellung mit 10 Pacern vor dir (83,7 % in der Suche)."},
+  {k:"a1",hide:true,p:[[1.4,0]],note:"Suchergebnis mit Läufern auch hinter dir (66,3 % in der Suche)."},
+  {k:"a2",hide:true,p:[[1.4,0],[-0.8,-0.4]],note:"Suchergebnis mit Läufern auch hinter dir (73,4 % in der Suche)."},
+  {k:"a3",hide:true,p:[[1.4,0],[-0.6,-0.3],[-0.6,0.3]],note:"Suchergebnis mit Läufern auch hinter dir (87,4 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a4",hide:true,big:true,p:[[3.6,-0.5],[1.4,0.1],[-0.5,-0.4],[-0.5,0.4]],note:"Suchergebnis mit Läufern auch hinter dir (87,6 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a5",hide:true,big:true,p:[[3.5,-0.4],[1.4,0.1],[-0.4,1],[-0.5,-0.3],[-0.5,0.4]],note:"Suchergebnis mit Läufern auch hinter dir (90,8 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a6",hide:true,big:true,p:[[3.3,-0.6],[1.4,0.1],[-0.4,1],[-0.5,-0.3],[-0.5,0.4],[-0.6,-1]],note:"Suchergebnis mit Läufern auch hinter dir (94,8 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a7",hide:true,big:true,p:[[3.3,-0.6],[1.8,-0.6],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4]],note:"Suchergebnis mit Läufern auch hinter dir (97,2 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a8",hide:true,big:true,p:[[3.3,-0.6],[1.8,-0.6],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4],[-0.7,-1.4]],note:"Suchergebnis mit Läufern auch hinter dir (98,3 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a9",hide:true,big:true,p:[[3.3,-0.6],[1.7,-0.7],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4],[-0.7,-1.4],[-1,-0.6]],note:"Suchergebnis mit Läufern auch hinter dir (98,3 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a10",hide:true,big:true,p:[[3.3,-0.6],[1.6,-0.7],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4],[-0.7,-1.4],[-1,-0.6],[-1.4,0]],note:"Suchergebnis mit Läufern auch hinter dir (98,4 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
   {k:"ineos",t:"INEOS-V",big:true,p:[[1.42,-0.05],[2.14,0.30],[2.67,0.61],[2.09,-0.47],[2.63,-0.75],[-2.20,0.23],[-2.16,-0.47]],
    note:"Gemessen im Drohnenvideo der INEOS 1:59 Challenge, Wien 2019."}
 ];
@@ -580,7 +610,7 @@ function block(q,skip,btn){const r=pacers.length>=MAXP&&skip<0?"Höchstens "+MAX
   else {noteN=0; warn(null);}   // erfolgreicher Zug löscht die alte Warnung
   readout(); return !r;}
 function ui(){
-  document.querySelectorAll("#presets button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===preset)));
+  document.querySelectorAll("#presets button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===preset))); bestUI();
   const s=pacers[sel];
   if(s){const v=(MY-s.y)*DX, w=(s.x-MX)*DX;
     $("selInfo").textContent=de(Math.abs(v),2)+" m "+(v>=0?"vor":"hinter")+" dir, "+de(Math.abs(w),2)+" m "+(Math.abs(w)<0.005?"seitlich":w>0?"rechts":"links");}
@@ -671,7 +701,14 @@ $("zOut").onclick=()=>setZoom(zoom+1); $("zIn").onclick=()=>setZoom(zoom-1);
 function showTab(t){document.querySelectorAll(".tabs [role=tab]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.t===t)));
   ["form","pacer","wind","view"].forEach(k=>$("pane-"+k).hidden=k!==t);}
 document.querySelector(".tabs").addEventListener("click",ev=>{const b=ev.target.closest("[role=tab]");if(b)showTab(b.dataset.t);});
-$("presets").innerHTML=PRESETS.map(p=>'<button type="button" data-k="'+p.k+'" aria-pressed="false">'+p.t+'</button>').join("");
+$("presets").innerHTML=PRESETS.filter(p=>!p.hide).map(p=>'<button type="button" data-k="'+p.k+'" aria-pressed="false">'+p.t+'</button>').join("");
+var bestVar="v";   // var: ui() darf bestUI schon vor dieser Zeile aufrufen
+function bestUI(){document.querySelectorAll("#bestN button").forEach(b=>b.setAttribute("aria-pressed",String(preset===bestVar+b.dataset.n)));
+  $("bestV").setAttribute("aria-pressed",String(bestVar==="v")); $("bestA").setAttribute("aria-pressed",String(bestVar==="a"));}
+$("bestN").innerHTML=[1,2,3,4,5,6,7,8,9,10].map(n=>'<button type="button" data-n="'+n+'" aria-label="Beste Aufstellung mit '+n+' Pacern">'+n+'</button>').join("");
+$("bestN").addEventListener("click",ev=>{const b=ev.target.closest("button"); if(!b) return; loadPreset(bestVar+b.dataset.n); bestUI();});
+$("bestV").onclick=()=>{bestVar="v"; const m=/^[va](\d+)$/.exec(preset); if(m) loadPreset("v"+m[1]); bestUI();};
+$("bestA").onclick=()=>{bestVar="a"; const m=/^[va](\d+)$/.exec(preset); if(m) loadPreset("a"+m[1]); bestUI();};
 $("presets").addEventListener("click",ev=>{const b=ev.target.closest("button");if(b)loadPreset(b.dataset.k);});
 // Rad wie im Laufzeit-Rechner: senkrecht drehen, rastet ein. Tippen auf den oberen oder unteren Wert geht einen Schritt.
 function makeWheel(mountId,vals,fmt,onChange,color){
