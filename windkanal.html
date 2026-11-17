@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 40</div>
+    <div class="kicker">Testversion 41</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -1114,7 +1114,7 @@ function sideParams(){
   // Dafür laufen die Luftteilchen im Bild um den Faktor air = Fahrtwind / Lauftempo schneller oder langsamer.
   return {v,rel,Tc,dtp:DXS*PAR2.U/Math.max(v,0.5),air:Math.max(0.3,Math.min(2.6,rel/Math.max(v,0.5)))};   // dtp = Sekunden je Rechenschritt
 }
-let lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0, slowMode=0, nSm=8;   // slowMode 0 = automatisch, sonst feste Zeitlupe
+let fpsShow=60, fpsTick=0, lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0, slowMode=0, nSm=8;   // slowMode 0 = automatisch, sonst feste Zeitlupe
 const SLOWS=[1,1.25,1.5,2,2.5,3,4,5,6,8,10,12];
 function sideStep(){
   const sp=sideParams(); if(sp.rel<0.8) return 0;
@@ -1229,8 +1229,12 @@ function drawSide(n){
   // Tempo-Anzeige gut lesbar unten rechts; kommt die Luft nicht hinterher, steht das dabei
   const lag=(sideWk?sideDebtW:simDebt)>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
   cS.font="700 34px system-ui,sans-serif"; cS.textAlign="right"; cS.textBaseline="middle";
-  const tw=cS.measureText(tx).width+28; cS.fillStyle="rgba(10,19,32,.85)"; cS.fillRect(cvS.width-tw-10,cvS.height-56,tw,48);
-  cS.fillStyle=lag?"#f0c269":"#e8edf3"; cS.fillText(tx,cvS.width-24,cvS.height-31); cS.textBaseline="alphabetic";
+  // Bildrate daneben, kleiner und nur zweimal je Sekunde neu, damit die Zahl nicht flackert
+  if(fpsTick++%30===0) fpsShow=Math.round(fpsSm);
+  const ft=fpsShow+" Bilder/s", mw=cS.measureText(tx).width; cS.font="600 24px system-ui,sans-serif"; const fw=cS.measureText(ft).width;
+  const tw=mw+fw+50; cS.fillStyle="rgba(10,19,32,.85)"; cS.fillRect(cvS.width-tw-10,cvS.height-56,tw,48);
+  cS.fillStyle="#9fb0c4"; cS.fillText(ft,cvS.width-24,cvS.height-30);
+  cS.font="700 34px system-ui,sans-serif"; cS.fillStyle=lag?"#f0c269":"#e8edf3"; cS.fillText(tx,cvS.width-24-fw-22,cvS.height-31); cS.textBaseline="alphabetic";
 }
 cvS.addEventListener("click",()=>warn("Pacer setzt und verschiebst du in der Ansicht von oben."));
 
