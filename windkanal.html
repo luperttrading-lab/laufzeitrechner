@@ -130,7 +130,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 47</div>
+    <div class="kicker">Testversion 48</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -185,7 +185,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Wirbel</dt>
       <dd>Der Schalter unter „Bild“ zeigt, wie sich hinter den Läufern Wirbel ablösen. Die Wirbel sind berechnet, nicht aufgemalt. Gemessen wird trotzdem im ruhigen Modus, weil nur der an der Studie geeicht ist.</dd>
       <dt>Tempo und Wind</dt>
-      <dd>Unter „Tempo + Wind“ stehen zwei Räder wie im Laufzeit-Rechner: senkrecht drehen, oder den Wert darüber oder darunter antippen. Beim Wind bedeutet Plus Gegenwind und Minus Rückenwind, darunter steht es ausgeschrieben. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Beide Räder gehen bis 30 km/h. Ist der Rückenwind so schnell wie du oder schneller, bleibt kein Fahrtwind von vorn: dann gibt es keine Zahlen, die Seitenansicht zeigt ruhende Luft um dich. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
+      <dd>Unter „Tempo + Wind“ stehen zwei Räder wie im Laufzeit-Rechner: senkrecht drehen, oder den Wert darüber oder darunter antippen. Beim Wind bedeutet Plus Gegenwind und Minus Rückenwind, darunter steht es ausgeschrieben. Bei Windstille entsteht der ganze Fahrtwind durch dein Lauftempo. Gegenwind kommt dazu, Rückenwind geht ab. Beide Räder gehen bis 30 km/h. Ist der Rückenwind so schnell wie du, steht die Luft um dich und es gibt keine Zahlen. Ist er schneller, kommt die Luft von hinten und schiebt: Beide Ansichten drehen die Strömung um, und Läufer hinter dir nehmen dir Schub weg. Diese Rechnung ist dieselbe wie von vorn, nur gespiegelt, und nicht an Studien geeicht. Im Modell ändert das die Kräfte und den Zeitgewinn, nicht die Prozentzahl. Seitenwind ist nicht enthalten.</dd>
     </dl>
   </section>
 
@@ -570,8 +570,17 @@ function startSideWorker(){
     sideWk.postMessage({cmd:"init",NX:NX2,NY:NY2,P:PAR2});
   }catch(err){sideWk=false;}
 }
-function bodyList(){return [me].concat(pacers).map(q=>({x:q.x,y:q.y,a:q.a,b:q.b}));}
+// Wind von hinten (Rückenwind schneller als du): Gerechnet wird dieselbe Strömung von oben nach unten, aber mit der in
+// Laufrichtung gespiegelten Aufstellung. Die Anzeige spiegelt das Feld zurück. rev wird aus Tempo und Wind bestimmt.
+let rev=false;
+const relKmh=()=>3600/(+$("pace").value)+(+$("wind").value);
+function bodyList(){return [me].concat(pacers).map(q=>({x:q.x,y:rev?NY-1-q.y:q.y,a:q.a,b:q.b}));}
+// Die Bezugskraft allein bleibt dieselbe: an deinem gespiegelten Platz im Rechenfeld weicht sie nur um 0,05 % ab (nachgerechnet).
 function sendSetup(){lastSetup={cmd:"setup",id:++cfgId,NX,NY,F0,F0c:sizeIx?0.0467630607932806:0.04675140631198883,list:bodyList()}; resetMirror(); post(lastSetup);}
+function syncWindDir(){const r=relKmh()<0; if(r===rev) return; rev=r;
+  for(let i=0;i<NP;i++) py[i]=NY-1-py[i];                       // Teilchen bleiben im Bild, wo sie sind
+  if(lastSetup) lastSetup.list=bodyList();
+  place();}
 document.addEventListener("visibilitychange",()=>post({cmd:"pause",on:paused||document.hidden}));
 
 // vor = Meter vor dir, seit = Meter nach rechts
@@ -809,9 +818,9 @@ function makeWheel(mountId,vals,fmt,onChange,color,mini){
 }
 const range=(a,b,st)=>{const o=[];for(let v=a;v<=b;v+=st)o.push(v);return o;};
 const windCol=v=>v>0?"var(--head)":v<0?"var(--tail)":"var(--ink)";
-const setWind=makeWheel("wWind",range(-30,30,1),v=>(v>0?"+":v<0?"−":"")+Math.abs(v),v=>{$("wind").value=v;ui();readout();},windCol);
+const setWind=makeWheel("wWind",range(-30,30,1),v=>(v>0?"+":v<0?"−":"")+Math.abs(v),v=>{$("wind").value=v;syncWindDir();ui();readout();},windCol);
 $("wWind").firstChild.insertAdjacentHTML("beforeend",'<div class="wtag t">Rück.</div><div class="wtag b">Gegen</div>');
-const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=v;ui();readout();});
+const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=v;syncWindDir();ui();readout();});
 // Schrittfrequenz: "auto" folgt dem Tempo, sonst fester Wert. Wirkt nur auf die Figuren der Seitenansicht.
 const setCad=makeWheel("wCad",[0].concat(range(150,210,2)),v=>v?String(v):"auto",v=>{CAD=v;ui();});
 // Bildrate begrenzen: "max" zeichnet im Takt des Bildschirms, sonst höchstens so viele Bilder je Sekunde. Die Rechnung läuft unabhängig davon.
@@ -825,26 +834,31 @@ for(let i=0;i<NP;i++){px[i]=Math.random()*NX;py[i]=Math.random()*NY;}
 let img=new ImageData(NX,NY); const off=document.createElement("canvas"); off.width=NX; off.height=NY; const octx=off.getContext("2d");
 
 function draw(k){
-  const {ux,uy,body}=sim, d=img.data, U=PAR.U;
-  if(road) for(let c=0,o=0;c<NX*NY;c++,o+=4){     // Helligkeit = wie stark die Luft mitgerissen wird
-    const g=uy[c]-U, s=Math.min(1,Math.hypot(ux[c],g)/U), f=g<0?s:0, bk=g<0?0:s;
-    d[o]=8+10*f+95*bk; d[o+1]=14+105*f+45*bk; d[o+2]=24+95*f; d[o+3]=255;
-  }
-  else for(let c=0,o=0;c<NX*NY;c++,o+=4){
-    const s=Math.hypot(ux[c],uy[c])/U, a=s<1?s:1, h=s>1?Math.min(1,(s-1)/0.6):0;
-    d[o]=8+22*a+85*h; d[o+1]=14+38*a+22*h; d[o+2]=24+56*a-36*h; d[o+3]=255;
+  const {ux,uy,body}=sim, d=img.data, U=PAR.U, calm=Math.abs(relKmh())<3;
+  // Wind von hinten: das Rechenfeld steht auf dem Kopf, Zeile y gehört im Bild an die Stelle NY-1-y
+  const row=y=>rev?NY-1-y:y;
+  if(calm) for(let o=0;o<NX*NY*4;o+=4){d[o]=8; d[o+1]=14; d[o+2]=24; d[o+3]=255;}      // kaum Fahrtwind: überall ruhige Luft
+  else for(let y=0;y<NY;y++){const c0=y*NX, o0=row(y)*NX*4;
+    if(road) for(let x=0;x<NX;x++){     // Helligkeit = wie stark die Luft mitgerissen wird
+      const c=c0+x, o=o0+x*4, g=uy[c]-U, s=Math.min(1,Math.hypot(ux[c],g)/U), f=g<0?s:0, bk=g<0?0:s;
+      d[o]=8+10*f+95*bk; d[o+1]=14+105*f+45*bk; d[o+2]=24+95*f; d[o+3]=255;
+    }
+    else for(let x=0;x<NX;x++){
+      const c=c0+x, o=o0+x*4, s=Math.hypot(ux[c],uy[c])/U, a=s<1?s:1, h=s>1?Math.min(1,(s-1)/0.6):0;
+      d[o]=8+22*a+85*h; d[o+1]=14+38*a+22*h; d[o+2]=24+56*a-36*h; d[o+3]=255;
+    }
   }
   octx.putImageData(img,0,0); ctx.imageSmoothingEnabled=true; ctx.drawImage(off,0,0,cv.width,cv.height);
   if(!showAir){ctx.fillStyle="#0c1726";ctx.fillRect(0,0,cv.width,cv.height);}
   drawGrid();
-  // Teilchen als kurze Striche, Länge = Tempo
-  const seg=[[],[],[]];
+  // Teilchen als kurze Striche, Länge = Tempo. Bei kaum Fahrtwind treiben sie nur noch langsam geradeaus.
+  const seg=[[],[],[]], Y=y=>(rev?NY-1-y:y)*S, cf=calm?Math.abs(relKmh())/3:1;
   for(let i=0;i<NP;i++){
-    let x=px[i], y=py[i]; const c=(y|0)*NX+(x|0), u=ux[c], v=road?uy[c]-U:uy[c];   // Sicht Straße: Bewegung gegenüber der ruhenden Luft
+    let x=px[i], y=py[i]; const c=(y|0)*NX+(x|0), u=calm?0:ux[c], v=calm?(road?0:U):road?uy[c]-U:uy[c];   // Sicht Straße: Bewegung gegenüber der ruhenden Luft
     const nx=x+u*k, ny=y+v*k, s=Math.hypot(u,v)/U;
-    seg[road?(s<0.1?1:v<0?0:2):(s<0.55?0:s>1.15?2:1)].push((x-u*26)*S,(y-v*26)*S,x*S,y*S);
+    seg[calm?1:road?(s<0.1?1:v<0?0:2):(s<0.55?0:s>1.15?2:1)].push((x-u*26*cf)*S,Y(y-v*26*cf),x*S,Y(y));
     x=nx; y=ny; if(x<0)x+=NX; else if(x>=NX)x-=NX;
-    if(road){if(y>=NY-1||y<1||body[(y|0)*NX+(x|0)]||Math.random()<0.006*k/8){x=Math.random()*NX;y=1+Math.random()*(NY-2);}}
+    if(road||calm){if(y>=NY-1||y<1||body[(y|0)*NX+(x|0)]||Math.random()<0.006*Math.max(k,2)/8){x=Math.random()*NX;y=1+Math.random()*(NY-2);}}
     else if(y>=NY-1||y<0||body[(y|0)*NX+(x|0)]||Math.random()<0.0015*k/8){x=Math.random()*NX;y=Math.random()*1.5;}
     px[i]=x; py[i]=y;
   }
@@ -862,7 +876,7 @@ function draw(k){
     ctx.fillStyle=i===0?"#dba84a":"#aab8c8"; ctx.beginPath(); ctx.ellipse(X,Y,q.a*S,q.b*S,0,0,7); ctx.fill();
     ctx.fillStyle=i===0?"#8a6410":"#6c7c8e"; ctx.beginPath(); ctx.arc(X,Y,3.3*S,0,7); ctx.fill();
     if(i>0&&i-1===sel){ctx.strokeStyle="#fff";ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(X,Y,q.a*S+7,q.b*S+7,0,0,7);ctx.stroke();}
-    if(M.shown&&!vortex&&(i===0||(MY-q.y)*DX>-0.3)){const p=100*(M.rel[i+1]-1);   // Läufer hinter dir sind durchlässig gerechnet, ihr eigener Wert wäre irreführend
+    if(M.shown&&!vortex&&Math.abs(relKmh())>=3&&(i===0||(rev?q.y-MY:MY-q.y)*DX>-0.3)){const p=100*(M.rel[i+1]-1);   // Läufer im Windschatten hinter dir (bei Wind von hinten: vor dir) sind durchlässig gerechnet, ihr eigener Wert wäre irreführend
       ctx.font="700 "+((i===0?13:11)/cssScale)+"px system-ui,sans-serif";ctx.textAlign="center";ctx.fillStyle=i===0?"#f3c86a":"#e8edf3";   // du in Gold und etwas größer
       ctx.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",X,Y-q.b*S-12);}
   });
@@ -1134,10 +1148,14 @@ function sideParams(){
   // Die Uhr der Figuren hängt nur am Lauftempo, nicht am Wind: Wind darf den Schrittrhythmus nicht ändern.
   // In der Rechnung steht das Tempo 0,1 für das Schnellere von Straße und Fahrtwind, das andere ist entsprechend kleiner:
   // bei Rückenwind strömt die Luft langsamer ein (bis zum Stillstand), die Straße läuft voll; bei Gegenwind umgekehrt.
-  // Bei Gegenwind laufen die Luftteilchen im Bild um den Faktor air = Fahrtwind / Lauftempo schneller.
-  const U0=0.1, vv=Math.max(v,0.5), r=Math.max(0,rel);                     // Rückenwind schneller als du: wie ruhende Luft um dich gerechnet
-  return {v,rel,Tc,dtp:DXS*U0/vv,uin:U0*Math.min(1,r/vv),ug:U0*Math.min(1,vv/Math.max(r,1e-6)),air:r>vv?Math.min(2.6,r/vv):1};   // dtp = Sekunden je Rechenschritt
+  // Bei starkem Wind laufen die Luftteilchen im Bild um den Faktor air = Fahrtwind / Lauftempo schneller.
+  // Wind von hinten (rev): Das Rechenfeld wird in Laufrichtung gespiegelt, die Luft strömt darin weiter von oben ein,
+  // die Straße läuft ihr dann entgegen (ug < 0). Die Anzeige spiegelt zurück.
+  const U0=0.1, vv=Math.max(v,0.5), rev=rel<0, r=Math.abs(rel);
+  return {v,rel,rev,Tc,dtp:DXS*U0/vv,uin:U0*Math.min(1,r/vv),ug:(rev?-1:1)*U0*Math.min(1,vv/Math.max(r,1e-6)),air:r>vv?Math.min(2.6,r/vv):1};   // dtp = Sekunden je Rechenschritt
 }
+let sideRev=false;
+function flipAlong(a){for(let y=0,z=NY2-1;y<z;y++,z--) for(let x=0;x<NX2;x++){const i=y*NX2+x, j=z*NX2+x, t=a[i]; a[i]=a[j]; a[j]=t;}}
 let fpsShow=60, fpsTick=0, lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0, slowMode=0, nSm=8;   // slowMode 0 = automatisch, sonst feste Zeitlupe
 const SLOWS=[1,1.25,1.5,2,2.5,3,4,5,6,8,10,12];
 function sideStep(){
@@ -1147,8 +1165,10 @@ function sideStep(){
   const t0=performance.now(), dtR=lastSide?Math.min(0.1,Math.max(0.004,(t0-lastSide)/1000)):1/60; lastSide=t0;   // echte Zeit seit dem letzten Bild
   // Die Figuren laufen streng nach der Uhr mit fester Zeitlupe. Die Luftrechnung zieht mit so vielen Schritten nach, wie dazu nötig sind.
   sideT+=dtR/slowFix; simDebt=sideWk?simDebt+dtR/slowFix/sp.dtp:Math.min(40,simDebt+dtR/slowFix/sp.dtp);
-  map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); sim2.setMap(map2);
+  if(sp.rev!==sideRev){sideRev=sp.rev; for(let i=0;i<NP2;i++) qy[i]=NY2-1-qy[i];}                 // Windrichtung gewechselt: Teilchen bleiben im Bild, wo sie sind
+  map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); if(sideRev) flipAlong(map2); sim2.setMap(map2);
   pmap.fill(0); O.forEach((r,j)=>rasterRunner(pmap,pose(sideT/sp.Tc+r.ph0,sp.v),j+1,r.along));          // schwächste zuerst, die stärkste gewinnt
+  if(sideRev) flipAlong(pmap);
   for(let k=0;k<pmap.length;k++) sim2.por[k]=pmap[k]?PDMAX*sideW(O[pmap[k]-1].lat):0;
   fpsSm+=0.05*(1/dtR-fpsSm);
   if(sideWk){                                                       // Worker: Karte und geschuldete Schritte hinschicken
@@ -1201,8 +1221,9 @@ function drawFigure(P,al,me,faded,cS){
 }
 function drawSide(n){
   const {ux,uy}=sim2, d=img2.data, U=PAR2.U, Un=Math.max(U,0.03), sp=sideParams();   // Un: Bezug für Farben, auch wenn kaum Luft einströmt
+  const yd=y=>sideRev?NY2-1-y:y;                                   // Wind von hinten: Rechenfeld zurückspiegeln
   for(let x=0;x<NX2;x++) for(let y=0;y<NY2;y++){
-    const c=y*NX2+x, o=((NX2-1-x)*NY2+y)*4;
+    const c=y*NX2+x, o=((NX2-1-x)*NY2+yd(y))*4;
     if(road){const g=uy[c]-U, s=Math.min(1,Math.hypot(ux[c],g)/Un), f=g<0?s:0, bk=g<0?0:s;
       d[o]=8+10*f+95*bk; d[o+1]=14+105*f+45*bk; d[o+2]=24+95*f;}
     else {const s=Math.hypot(ux[c],uy[c])/Un, a=s<1?s:1, h=s>1?Math.min(1,(s-1)/0.6):0;
@@ -1232,7 +1253,7 @@ function drawSide(n){
     const seg=[[],[],[]];
     for(let i=0;i<NP2;i++){
       let x=qx[i], y=qy[i]; const c=(y|0)*NX2+(x|0), u=ux[c], v=road?uy[c]-U:uy[c], s=Math.hypot(u,v)/Un;
-      seg[road?(s<0.1?1:v<0?0:2):(s<0.55?0:s>1.15?2:1)].push(y*S2,cY(x),(y-v*15*Math.min(1.5,sp.air))*S2,cY(x-u*15*Math.min(1.5,sp.air)));
+      seg[road?(s<0.1?1:v<0?0:2):(s<0.55?0:s>1.15?2:1)].push(yd(y)*S2,cY(x),yd(y-v*15*Math.min(1.5,sp.air))*S2,cY(x-u*15*Math.min(1.5,sp.air)));
       x+=u*n*sp.air; y+=(road?uy[c]:v)*n*sp.air;
       if(y>=NY2-1||y<0||x<1||x>=NX2-1||sim2.body[(y|0)*NX2+(x|0)]||Math.random()<0.004){x=1+Math.random()*(NX2-2); y=road||U<0.03?Math.random()*NY2:Math.random()*2;}   // strömt kaum Luft ein, entstehen neue Teilchen überall
       qx[i]=x; qy[i]=y;
@@ -1248,7 +1269,7 @@ function drawSide(n){
   // je weiter seitlich, desto stärker zum Hintergrund hin abgedunkelt (deckend gezeichnet: schneller als eine durchscheinende Ebene)
   out.sort((a,b)=>sideW(a.lat)-sideW(b.lat)).forEach(r=>drawFigure(pose(sideT/sp.Tc+r.ph0,sp.v),r.along,false,dimCol(0.22+0.5*sideW(r.lat)),cS));
   inn.forEach(r=>{const P=pose(sideT/sp.Tc+r.ph0,sp.v); drawFigure(P,r.along,r.me,false,cS);
-    if(M.shown&&!vortex&&sp.rel*3.6>=3&&(r.me||r.along>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
+    if(M.shown&&!vortex&&Math.abs(sp.rel)*3.6>=3&&(r.me||(sp.rev?-r.along:r.along)>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
   // Tempo-Anzeige gut lesbar unten rechts; kommt die Luft nicht hinterher, steht das dabei
   const lag=sideWk?sideLagW:simDebt>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
@@ -1280,26 +1301,28 @@ function readout(){
     $("result").textContent="Wirbelmodus: Hier zählt nur das Bild.";
     if(!keepMsg) st.textContent=k?"Die Prozentzahl stammt aus dem Messmodus.":"Zum Messen den Schalter Wirbel ausschalten."; return;
   }
-  if(rel<3){
+  if(Math.abs(rel)<3){
     $("busy").style.width="0";
     $("drag").textContent="–"; $("dragSub").textContent="Widerstand"; $("inflow").textContent="–"; $("inflowSub").textContent="gefühlter Wind";
-    $("result").textContent=rel<=-3?"Der Rückenwind ist "+de(-rel,1)+" km/h schneller als du: er schiebt.":"Kaum Fahrtwind: Der Rückenwind ist so schnell wie du.";
-    st.textContent="Hier gilt das Modell nicht. Nimm weniger Rückenwind."; st.className="status warn"; return;
+    $("result").textContent="Kaum Fahrtwind: Der Rückenwind ist so schnell wie du.";
+    st.textContent="Die Luft steht fast um dich. Hier gibt es nichts zu sparen."; st.className="status warn"; return;
   }
-  const Fs=KD*Math.pow(rel/3.6,2), Fn=Fs*(1-p);
+  // Wind von hinten (rel < 0): Die Luft schiebt. Wer hinter dir läuft, nimmt dir Schub weg. Gleiche Rechnung, gespiegelt, aber nicht an Studien geeicht.
+  const back=rel<0, ar=Math.abs(rel), Fs=KD*Math.pow(ar/3.6,2), Fn=Fs*(1-p);
   // Solange gemessen wird, steht ein ≈ davor. Der Endwert steht ohne ≈ und mit Haken darunter.
-  $("drag").textContent=!M.shown?"…":(settling?"≈ ":"")+(Math.abs(p)<0.005?"wie allein":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr"));
+  $("drag").textContent=!M.shown?"…":(settling?"≈ ":"")+(Math.abs(p)<0.005?"wie allein":(p>=0?de(100*p,0)+" % weniger":de(-100*p,0)+" % mehr")+(back?" Schub":""));
   $("dragSub").textContent=!settling?"✓ fertig · "+de(Fn,1)+" statt "+de(Fs,1)+" N"
     :coarse?"erste Schätzung · "+Math.round(prog)+" %":"Messung läuft · "+Math.round(prog)+" %";
   const bz=$("busy"); bz.style.opacity=settling?1:0.35;
   bz.style.width=settling?Math.round(prog)+"%":M.idle?"0":Math.round(100*M.rn/6000)+"%";
   // Gefühlter Wind: bei diesem Fahrtwind hättest du allein denselben Widerstand (Kraft wächst mit dem Quadrat des Winds)
-  $("inflow").textContent=!M.shown?"…":de(rel*Math.sqrt(Math.max(0,1-p)),1)+" km/h";
-  $("inflowSub").textContent="gefühlter Wind · allein "+de(rel,1);
-  // Zeitgewinn bei gleicher Anstrengung
-  const inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*p*inc/100, en=100*p*inc/(100+inc);
+  $("inflow").textContent=!M.shown?"…":de(ar*Math.sqrt(Math.max(0,1-p)),1)+" km/h";
+  $("inflowSub").textContent=back?"Schiebewind · allein "+de(ar,1):"gefühlter Wind · allein "+de(rel,1);
+  // Zeitgewinn bei gleicher Anstrengung; bei Wind von hinten kostet verlorener Schub Zeit
+  const pe=back?-p:p, inc=K*Fs/BW*100, T=KM*pace/60, dt=pace*ratio(T)*pe*inc/100, en=100*pe*inc/(100+inc);
   $("result").textContent=!M.shown?"Berechnung läuft …"
     :(settling?"Vorläufig: ":"")+(dt>=0?"≈ "+de(dt,1)+" s/km schneller":"≈ "+de(-dt,1)+" s/km langsamer")+" · Energie "+(en>=0?"−":"+")+de(Math.abs(en),1)+" %"+(inc>10?" · grob":"");
+  if(back){if(!keepMsg){st.textContent="Wind von hinten: gleiche Rechnung gespiegelt, nicht an Studien geeicht."; st.className="status warn";} return;}
   if(!keepMsg) st.textContent=!P?"Eigene Aufstellung, dafür gibt es keinen Studienwert."
     :P.note?P.note
     :P.ref?"Studienwert: "+de(P.ref,1)+" % weniger ("+P.src+")"
@@ -1320,7 +1343,7 @@ function loop(now){
     const rel=3600/(+$("pace").value)+(+$("wind").value);
     // Im Messmodus laufen die Teilchen immer gleich schnell, egal wie viele Rechenschritte das Gerät gerade schafft.
     if(sideView) drawSide(sideStep());
-    else draw((vortex?steps:8*fs)*Math.min(2.2,Math.max(0.3,rel/15)));
+    else draw((vortex?steps:8*fs)*Math.min(2.2,Math.abs(rel)/15));
     if(frame%30===0) measure();
     if(frame++%6===0) readout();
   }
