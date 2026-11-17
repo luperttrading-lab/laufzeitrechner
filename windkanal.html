@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 36</div>
+    <div class="kicker">Testversion 37</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -165,8 +165,8 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
         Die 1,4 m direkt hintereinander stammen aus dem Drohnenvideo der INEOS 1:59 Challenge: So weit liefen Kipchoge und der Pacer vor ihm auseinander, weil die Füße bei diesem Tempo weit nach vorn und hinten schwingen. Die Aufstellungen aus den Studien (1,2 und 1,3 m) bleiben als Knöpfe erhalten, auch wenn sie die Regel unterschreiten. Seitlich um 28 bis 31 cm versetzt liefen die Pacer dort nur 0,53 m hintereinander. Die Stufe 45 bis 60 cm ist eine eigene Annahme.</dd>
       <dt>Beste Aufstellungen</dt>
       <dd>Unter „Aufstellung“ wählst du mit den Zahlen 1 bis 10 die beste gefundene Aufstellung mit so vielen Pacern, wahlweise nur vor dir oder auch hinter dir. Gefunden hat sie eine Suche mit der Abstandsregel: Für jeden weiteren Pacer wurde jeder erlaubte Platz im 20-cm-Raster probiert, danach wurden alle Pacer noch einmal verschoben. Es ist deshalb die beste Aufstellung, die schrittweise entsteht, nicht sicher die beste überhaupt.
-        <span style="display:block;margin-top:4px">Nur vor dir: 66, 77, 81, 82, 82, 82, 83, 84, 84, 84 % für 1 bis 10 Pacer.<br>Auch hinter dir: 66, 73, 87, 88, 91, 95, 97, 98, 98, 98 %.</span>
-        Nur vor dir ist ab vier Pacern kaum noch etwas zu holen, das passt zu den etwa 85 %, die da Silva et al. als Grenze nennen. Mit Läufern hinter dir steigen die Werte bis 98 %. Das halte ich trotz der Korrektur für überschätzt: Die Korrektur ist an einem einzelnen Pacer 1,2 m hinter dir geeicht, hier laufen bis zu sieben Läufer dicht hinter dir.</dd>
+        <span style="display:block;margin-top:4px">Nur vor dir: 66, 77, 81, 82, 82, 82, 83, 84, 84, 84 % für 1 bis 10 Pacer.<br>Auch hinter dir: 66, 77, 82, 87, 88, 90, 91, 91, 91, 92 %.</span>
+        Nur vor dir ist ab vier Pacern kaum noch etwas zu holen, das passt zu den etwa 85 %, die da Silva et al. als Grenze nennen. Mit Läufern hinter dir steigen die Werte bis 92 %. Sie sind unsicherer, weil es für Läufer hinter dir nur einen einzigen Studienwert gibt.</dd>
       <dt>Gefühlter Wind</dt>
       <dd>So stark müsste der Fahrtwind im Alleinlauf sein, damit dich dieselbe Kraft bremst wie jetzt. Die Kraft wächst mit dem Quadrat des Winds, deshalb gilt: gefühlter Wind = Fahrtwind × Wurzel aus dem Rest-Widerstand. Beispiel: 70 % weniger Widerstand lässt 30 % übrig, die Wurzel daraus ist 0,55, bei 15 km/h sind das 8,2 km/h. Läufst du allein, steht dort dein voller Fahrtwind.</dd>
       <dt>Sekunden pro Kilometer</dt>
@@ -544,15 +544,15 @@ const PRESETS=[
   {k:"v9",hide:true,big:true,p:[[3.6,0.5],[3.6,-1.1],[3.4,1.4],[2.8,-1.4],[2.2,-1],[1.7,-0.5],[1.7,1.2],[1.6,0.6],[1.4,0]],note:"Suchergebnis: beste Aufstellung mit 9 Pacern vor dir (83,7 % in der Suche)."},
   {k:"v10",hide:true,big:true,p:[[3.6,0.5],[3.6,-1.1],[3.4,1.4],[2.8,-1.4],[2.2,-1],[1.7,-0.5],[1.7,1.2],[1.6,0.6],[1.4,0],[1.4,-1.4]],note:"Suchergebnis: beste Aufstellung mit 10 Pacern vor dir (83,7 % in der Suche)."},
   {k:"a1",hide:true,p:[[1.4,0]],note:"Suchergebnis mit Läufern auch hinter dir (66,3 % in der Suche)."},
-  {k:"a2",hide:true,p:[[1.4,0],[-0.8,-0.4]],note:"Suchergebnis mit Läufern auch hinter dir (73,4 % in der Suche)."},
-  {k:"a3",hide:true,p:[[1.4,0],[-0.6,-0.3],[-0.6,0.3]],note:"Suchergebnis mit Läufern auch hinter dir (87,4 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
-  {k:"a4",hide:true,big:true,p:[[3.6,-0.5],[1.4,0.1],[-0.5,-0.4],[-0.5,0.4]],note:"Suchergebnis mit Läufern auch hinter dir (87,6 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
-  {k:"a5",hide:true,big:true,p:[[3.5,-0.4],[1.4,0.1],[-0.4,1],[-0.5,-0.3],[-0.5,0.4]],note:"Suchergebnis mit Läufern auch hinter dir (90,8 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
-  {k:"a6",hide:true,big:true,p:[[3.3,-0.6],[1.4,0.1],[-0.4,1],[-0.5,-0.3],[-0.5,0.4],[-0.6,-1]],note:"Suchergebnis mit Läufern auch hinter dir (94,8 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
-  {k:"a7",hide:true,big:true,p:[[3.3,-0.6],[1.8,-0.6],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4]],note:"Suchergebnis mit Läufern auch hinter dir (97,2 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
-  {k:"a8",hide:true,big:true,p:[[3.3,-0.6],[1.8,-0.6],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4],[-0.7,-1.4]],note:"Suchergebnis mit Läufern auch hinter dir (98,3 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
-  {k:"a9",hide:true,big:true,p:[[3.3,-0.6],[1.7,-0.7],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4],[-0.7,-1.4],[-1,-0.6]],note:"Suchergebnis mit Läufern auch hinter dir (98,3 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
-  {k:"a10",hide:true,big:true,p:[[3.3,-0.6],[1.6,-0.7],[1.4,0.1],[-0.4,1],[-0.4,-0.9],[-0.5,-0.3],[-0.5,0.4],[-0.7,-1.4],[-1,-0.6],[-1.4,0]],note:"Suchergebnis mit Läufern auch hinter dir (98,4 % in der Suche). Vermutlich überschätzt: Läufer dicht hinter dir."},
+  {k:"a2",hide:true,p:[[1.7,-0.5],[1.4,0.1]],note:"Suchergebnis mit Läufern auch hinter dir (76,8 % in der Suche)."},
+  {k:"a3",hide:true,p:[[1.7,-0.5],[1.4,0.1],[-0.6,0.3]],note:"Suchergebnis mit Läufern auch hinter dir (81,8 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
+  {k:"a4",hide:true,p:[[1.7,-0.5],[1.4,0.1],[-0.6,0.3],[-0.6,-0.3]],note:"Suchergebnis mit Läufern auch hinter dir (86,8 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
+  {k:"a5",hide:true,big:true,p:[[2.5,0.6],[1.7,-0.5],[1.4,0.1],[-0.6,0.3],[-0.6,-0.3]],note:"Suchergebnis mit Läufern auch hinter dir (88,4 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
+  {k:"a6",hide:true,big:true,p:[[2.3,0.6],[1.7,-0.5],[1.4,0.1],[-0.4,1],[-0.6,0.3],[-0.6,-0.3]],note:"Suchergebnis mit Läufern auch hinter dir (89,7 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
+  {k:"a7",hide:true,big:true,p:[[2.5,0.8],[1.7,-0.5],[1.4,0.1],[-0.4,1],[-0.6,0.3],[-0.6,-0.3],[-1.2,-0.6]],note:"Suchergebnis mit Läufern auch hinter dir (90,9 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
+  {k:"a8",hide:true,big:true,p:[[3.4,-0.6],[2.5,0.8],[1.7,-0.5],[1.4,0.1],[-0.4,1],[-0.6,0.3],[-0.6,-0.3],[-1.2,-0.6]],note:"Suchergebnis mit Läufern auch hinter dir (90,6 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
+  {k:"a9",hide:true,big:true,p:[[3.4,-0.6],[2.4,-1.4],[2.3,0.6],[1.7,-0.5],[1.4,0.1],[-0.4,1],[-0.6,0.3],[-0.6,-0.3],[-1.2,-0.6]],note:"Suchergebnis mit Läufern auch hinter dir (90,8 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
+  {k:"a10",hide:true,big:true,p:[[3.4,-0.6],[2.5,0.8],[2.4,-1.4],[1.7,-0.5],[1.4,0.1],[-0.4,1],[-0.6,0.3],[-0.6,-0.3],[-1.2,-0.6],[-1.2,0.6]],note:"Suchergebnis mit Läufern auch hinter dir (91,7 % in der Suche). Läufer hinter dir sind durchlässig gerechnet."},
   {k:"ineos",t:"INEOS-V",big:true,p:[[1.42,-0.05],[2.14,0.30],[2.67,0.61],[2.09,-0.47],[2.63,-0.75],[-2.20,0.23],[-2.16,-0.47]],
    note:"Gemessen im Drohnenvideo der INEOS 1:59 Challenge, Wien 2019."}
 ];
