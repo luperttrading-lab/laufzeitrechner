@@ -124,7 +124,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 33</div>
+    <div class="kicker">Testversion 34</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -181,7 +181,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 
   <section class="panel">
     <h2>Wie gut trifft das Modell die Studie?</h2>
-    <p class="small">Das Modell hat zwei Stellschrauben. Beide sind an zwei Werten von Schickhofer und Hanson geeicht. Alle anderen Zeilen sind Vorhersagen, die das Modell vorher nicht kannte.</p>
+    <p class="small">Das Modell hat zwei Stellschrauben, geeicht an zwei Werten von Schickhofer und Hanson. Dazu kommt eine Korrektur für Läufer hinter dir, geeicht am dritten Wert. Alle anderen Zeilen sind Vorhersagen, die das Modell vorher nicht kannte.</p>
     <div class="scroll">
       <table>
         <thead><tr><th>Aufstellung</th><th class="num">Studie</th><th class="num">Modell</th><th>Rolle</th></tr></thead>
@@ -197,6 +197,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <li><strong>Ersatz für die dritte Dimension.</strong> In echt weicht Luft über die Köpfe aus und füllt den Windschatten von oben wieder auf. Das Modell bildet beides mit je einer Stellschraube nach.</li>
       <li><strong>Messmodus und Wirbelmodus.</strong> Im Messmodus zeigt das Modell den zeitlichen Mittelwert: eine ruhige, lange Zone langsamer Luft. Der Schalter „Wirbel“ rechnet die Strömung ohne die beiden Stellschrauben. Dann lösen sich echte Wirbel ab, aber die Prozentwerte stimmen nicht mehr, hinter einem Pacer käme fast 90 % heraus. Deshalb zeigt der Wirbelmodus nur das Bild und die Zahl aus dem Messmodus.</li>
       <li><strong>Prozentwert unabhängig vom Tempo.</strong> Tempo und Wind ändern im Modell die Kraft in Newton, nicht den Anteil.</li>
+      <li><strong>Korrektur für Läufer hinter dir.</strong> In zwei Dimensionen kann die Luft, die sich vor einem Läufer staut, nicht nach oben ausweichen. Ein Pacer hinter dir schiebt dich deshalb im Modell zu stark an: 7,7 statt 5,5 Punkte laut Schickhofer und Hanson. Die App rechnet deshalb zusätzlich ohne die Läufer hinter dir und kürzt deren Beitrag um gut ein Viertel. Ein Versuch, das mit einer dritten Stellschraube im Rechenkern zu beheben, hat in 63 Einstellungen keinen Kompromiss ergeben: Weniger Schub von hinten verfälschte jedes Mal die Formationen mit Seitenläufern.</li>
       <li><strong>Geeicht, nicht unabhängig.</strong> Weil das Modell an der Studie von Schickhofer und Hanson ausgerichtet ist, kann es deren Zahlen nicht bestätigen.</li>
     </ul>
     <p class="small" style="margin:10px 0 0">Verfahren: Gitter-Boltzmann (D2Q9) mit Wirbelviskosität nach Smagorinsky, 128 × 240 Zellen zu je 3 cm, im großen Feld 160 × 320. Widerstand aus dem Impulsübertrag der Luft an den Körperrändern.</p>
@@ -394,18 +395,27 @@ let pacers=[], sel=-1, paused=false, preset="f1";
 function topWorker(self,createSim,REAL){
   const PARC={U:0.1,nu:0.004,cs:0.16,lam:0.0008,mu:0.4}, CAL={nu:0.008,lam:0.0004,mu:0.2}, VOR={nu:0.004,lam:0,mu:0};
   const PAR={U:0.1,cs:0.16,nu:0.008,lam:0.0004,mu:0.2};
-  let NX=0,NY=0,F0=1,F0c=1,sim=null,simC=null,list=[],vortex=false,paused=false,steps=0,dirty=true,lastSend=0,id=0;
-  const M={phase:"coarse",n:0,blk:0,sum:new Float64Array(16),rel:new Float64Array(16).fill(1),hist:[],spread:null,shown:false,done:false,rn:0,idle:false};
+  let NX=0,NY=0,F0=1,F0c=1,sim=null,simC=null,simB=null,list=[],vortex=false,paused=false,steps=0,dirty=true,lastSend=0,id=0;
+  // Korrektur für Läufer hinter dir: Das 2D-Modell überschätzt ihren Schub. Schickhofer & Hanson: ein Pacer 1,2 m hinter dir
+  // bringt 5,5 Punkte (Formation 2 gegen 1), das Modell 7,7. Ihr Beitrag (Widerstandsminderung mit allen Läufern minus ohne
+  // die Läufer hinter dir, in der groben Rechnung) wird mit KB gewichtet. KB ist so gewählt, dass Formation 2 mit 75,6 % getroffen wird.
+  const KB=0.68, BEHIND=-0.2;
+  const M={phase:"coarse",n:0,blk:0,sum:new Float64Array(16),rel:new Float64Array(16).fill(1),hist:[],spread:null,shown:false,done:false,rn:0,idle:false,hasB:false,sb:0,sc:0,cb:0,dH:[],dC:0};
   const hist4=[];
   function startMeasure(){
     simC.setBodies(list.map(q=>({x:q.x/2,y:q.y/2,a:q.a/2,b:q.b/2})));
-    Object.assign(M,{phase:"coarse",n:0,blk:0,hist:[],spread:null,shown:false,done:false,rn:0,idle:false}); M.sum.fill(0); M.rel.fill(1);
+    const front=list.filter((q,i)=>i===0||(list[0].y-q.y)*0.03>=BEHIND), hasB=front.length<list.length;
+    if(hasB){simB.reset(); simB.setBodies(front.map(q=>({x:q.x/2,y:q.y/2,a:q.a/2,b:q.b/2})));}
+    Object.assign(M,{phase:"coarse",n:0,blk:0,hist:[],spread:null,shown:false,done:false,rn:0,idle:false,hasB,sb:0,sc:0,cb:0,dH:[],dC:0}); M.sum.fill(0); M.rel.fill(1);
   }
   function blockDone(nb,F,b){
     for(let i=1;i<=nb;i++){M.rel[i]=M.sum[i]/b/F; M.sum[i]=0; if(M.phase==="fine"){(hist4[i]=hist4[i]||[]).push(M.rel[i]); if(hist4[i].length>10) hist4[i].shift();}}
     M.blk=0; M.hist.push(100*(1-M.rel[1])); const h=M.hist, L=h.length;
     if(M.phase==="fine"||(L>=3&&Math.abs(h[L-1]-h[L-2])<2&&Math.abs(h[L-2]-h[L-3])<2)) M.shown=true;   // vorher nur Anlaufschwankung
   }
+  // Beitrag der Läufer hinter dir: grobe Rechnung mit allen (simC) gegen ohne die Läufer hinter dir (simB), Mittel der letzten vier Blöcke
+  function pairAdd(){M.sc+=simC.fy[1]; M.sb+=simB.fy[1];
+    if(++M.cb===50){M.dH.push((M.sb-M.sc)/50/F0c); M.sc=M.sb=M.cb=0; const a=M.dH.slice(-4); M.dC=a.reduce((x,y)=>x+y,0)/a.length;}}
   function meanB(nb,k){for(let i=1;i<=nb;i++){const a=(hist4[i]||[]).slice(-k); if(a.length) M.rel[i]=a.reduce((x,y)=>x+y,0)/a.length;}}
   function toFine(){                     // feines Startfeld aus dem groben hochrechnen
     const U2=new Float32Array(NX*NY), V2=new Float32Array(NX*NY), cx=NX/2;
@@ -419,10 +429,12 @@ function topWorker(self,createSim,REAL){
       if(M.idle) break;
       if(M.phase==="coarse"){
         simC.step(); M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=simC.fy[i];
+        if(M.hasB){simB.step(); pairAdd();}
         if(++M.blk===50){blockDone(nb,F0c,50); const h=M.hist, L=h.length;
           if((M.n>=400&&L>=3&&Math.abs(h[L-1]-h[L-2])<0.5&&Math.abs(h[L-2]-h[L-3])<0.5)||M.n>=1600) toFine();}
       } else {
         sim.step(); steps++; M.n++; for(let i=1;i<=nb;i++) M.sum[i]+=sim.fy[i];
+        if(M.hasB&&!M.done&&(M.n&1)){simC.step(); simB.step(); pairAdd();}   // grobe Rechnungen laufen mit (ein grober Schritt = zwei feine)
         if(++M.blk===100){blockDone(nb,F0,100); const h=M.hist, L=h.length;
           if(!M.done){
             if(L>=4){const w=h.slice(-4); M.spread=Math.max(...w)-Math.min(...w);}
@@ -441,13 +453,14 @@ function topWorker(self,createSim,REAL){
     self.postMessage({type:"body",id,body:sim.body.slice()});
   }
   self.onmessage=e=>{const d=e.data; if(d.id!==undefined) id=d.id;
-    if(d.cmd==="setup"){NX=d.NX; NY=d.NY; F0=d.F0; F0c=d.F0c; sim=createSim(NX,NY,PAR); simC=createSim(NX/2,NY/2,PARC); list=d.list; place();}
+    if(d.cmd==="setup"){NX=d.NX; NY=d.NY; F0=d.F0; F0c=d.F0c; sim=createSim(NX,NY,PAR); simC=createSim(NX/2,NY/2,PARC); simB=createSim(NX/2,NY/2,PARC); list=d.list; place();}
     else if(d.cmd==="bodies"){list=d.list; place();}
     else if(d.cmd==="vortex"){vortex=d.on; Object.assign(PAR,vortex?VOR:CAL); if(!vortex) sim.reset(); place();}
     else if(d.cmd==="pause") paused=d.on;
   };
   function send(){
-    const st={id,NX,phase:M.phase,shown:M.shown,done:M.done,idle:M.idle,rel:Array.from(M.rel),spread:M.spread,n:M.n,rn:M.rn,steps};
+    const rel=Array.from(M.rel); if(M.hasB) rel[1]+=(1-KB)*M.dC;         // Schub von hinten auf das Studienmaß kürzen
+    const st={id,NX,phase:M.phase,shown:M.shown,done:M.done,idle:M.idle,rel,spread:M.spread,n:M.n,rn:M.rn,steps,corr:M.hasB?100*(1-KB)*M.dC:0};
     const ux=sim.ux.slice(), uy=sim.uy.slice();
     if(REAL) self.postMessage({type:"state",id,st,ux,uy},[ux.buffer,uy.buffer]); else self.postMessage({type:"state",id,st,ux,uy});
   }
@@ -515,7 +528,7 @@ const PRESETS=[
   {k:"ineos",t:"INEOS-V",big:true,p:[[1.42,-0.05],[2.14,0.30],[2.67,0.61],[2.09,-0.47],[2.63,-0.75],[-2.20,0.23],[-2.16,-0.47]],
    note:"Gemessen im Drohnenvideo der INEOS 1:59 Challenge, Wien 2019."}
 ];
-const VALID=[["1 Pacer vorn, 1,2 m", 70.1, 70.2, "geeicht"], ["Pacer vorn + zwei seitlich", 33.4, 34.1, "geeicht"], ["Pacer vorn + hinten", 75.6, 77.9, "Test"], ["2 Pacer vorn mit Lücke", 41.3, 37.8, "Test"], ["1 Pacer vorn, 1,0 m", 76.0, 74.4, "Test"], ["1 Pacer vorn, 1,5 m", 63.2, 64.6, "Test"], ["Dreierreihe vorn, 1,3 m (andere Arbeitsgruppe)", 57.3, 66.2, "Test"], ["Fünferkette, Position 2 (andere Arbeitsgruppe)", 63.3, 78.4, "Test"]];
+const VALID=[["1 Pacer vorn, 1,2 m", 70.1, 70.2, "geeicht"], ["Pacer vorn + zwei seitlich", 33.4, 34.1, "geeicht"], ["Pacer vorn + hinten", 75.6, 75.6, "geeicht"], ["2 Pacer vorn mit Lücke", 41.3, 37.8, "Test"], ["1 Pacer vorn, 1,0 m", 76.0, 74.4, "Test"], ["1 Pacer vorn, 1,5 m", 63.2, 64.6, "Test"], ["Dreierreihe vorn, 1,3 m (andere Arbeitsgruppe)", 57.3, 66.2, "Test"], ["Fünferkette, Position 2 (andere Arbeitsgruppe)", 63.3, 75.7, "Test"]];
 
 // ---- Umrechnung in Kraft, Energie und Zeit (da Silva et al., 52-kg-Referenzläufer) ----
 const KD=0.2065;       // Widerstand allein in N je (m/s)²: 1,39 % von 52 kg bei 2-h-Tempo
