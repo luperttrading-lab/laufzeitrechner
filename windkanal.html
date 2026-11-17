@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 41</div>
+    <div class="kicker">Testversion 42</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -174,7 +174,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <dt>Fahrtwind und mitgerissene Luft</dt>
       <dd>Beides ist dieselbe Strömung, nur anders betrachtet. Unter „Bild“ wechselst du die Sicht. Bei „Fahrtwind“ stehst du still und die Luft strömt an dir vorbei. Bei „Mitgerissene Luft“ steht die Luft, und du siehst, was die Läufer mit ihr machen: Vorn schieben sie sie weg, hinter sich reißen sie sie mit. Die dunkle, ruhige Zone der einen Sicht ist der Sog der anderen.</dd>
       <dt>Seitenansicht</dt>
-      <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren, je nach Gerät in Echtzeit oder leichter Zeitlupe. Unten rechts stehen die Zeitlupe und die Bilder pro Sekunde. Wind ändert den Schrittrhythmus der Figuren nicht, nur das Tempo der Luftteilchen. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Pacer, die höchstens 20 cm seitlich versetzt laufen, stehen voll in der Schnittebene. Weiter seitlich versetzte bremsen die Luft in diesem Bild nur teilweise: bei 30 cm zu zwei Dritteln, bei 60 cm zu einem Drittel, ab 90 cm gar nicht mehr. Sie sind entsprechend blasser gezeichnet. Diese Abstufung ist eine eigene Annahme.</dd>
+      <dd>Unter „Bild“ schaltest du auf „Von der Seite“. Gezeigt wird ein senkrechter Schnitt längs der Laufrichtung durch dich, mit laufenden Figuren, je nach Gerät in Echtzeit oder leichter Zeitlupe. Unten rechts stehen die Zeitlupe und die Bilder pro Sekunde. Mit dem Drehrad „Bilder“ unter „Bild“ lässt sich die Bildrate begrenzen. Wind ändert den Schrittrhythmus der Figuren nicht, nur das Tempo der Luftteilchen. Die Luft ist dafür eigens gerechnet, mit bewegten Armen und Beinen und einer Straße, die mit deinem Lauftempo unter dir durchläuft. Weil in einem Längsschnitt kein Weg seitlich um die Läufer herum frei ist, lässt ein schwacher Druckausgleich Luft aus der Ebene entweichen. Ohne ihn würde die Luft mit doppeltem Tempo über die Köpfe schießen. Diese Rechnung ist nicht geeicht und dient dem Bild. Die Zahlen oben kommen weiter aus der Draufsicht. Pacer, die höchstens 20 cm seitlich versetzt laufen, stehen voll in der Schnittebene. Weiter seitlich versetzte bremsen die Luft in diesem Bild nur teilweise: bei 30 cm zu zwei Dritteln, bei 60 cm zu einem Drittel, ab 90 cm gar nicht mehr. Sie sind entsprechend blasser gezeichnet. Diese Abstufung ist eine eigene Annahme.</dd>
       <dt>Laufstil der Figuren</dt>
       <dd>Der schnelle Laufstil ist aus einer Zeitlupenaufnahme von Eliud Kipchoge bei 2:52 min/km ausgemessen: Oberschenkel von 29° hinter bis 55° vor der Senkrechten, Knie bis 144° gebeugt, Ferse fast am Gesäß, Bodenkontakt 26 % des Doppelschritts. Der Oberarm pendelt hinter der Senkrechten. Für langsames Laufen gibt es keine solche Messung, dort gelten eigene Annahmen nach den Spitzenwerten von Fukuchi et al. Dazwischen wird nach Tempo gemischt.</dd>
       <dt>Schrittfrequenz</dt>
@@ -283,7 +283,10 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <button type="button" data-g="2" aria-pressed="true">10 cm</button>
       <button type="button" id="air" aria-pressed="true" style="margin-left:auto">Luft</button>
     </div>
-    <div class="small" id="viewHint" style="margin-top:8px;white-space:normal"></div>
+    <div style="display:flex;gap:10px;margin-top:8px;align-items:flex-start">
+      <div class="wcell" style="flex:0 0 92px"><div class="wlabel">Bilder · /s</div><div id="wFps"></div></div>
+      <div class="small" id="viewHint" style="white-space:normal;min-width:0"></div>
+    </div>
   </div>
   <div class="tabs" role="tablist">
     <button type="button" role="tab" data-t="form" aria-selected="true">Aufstellung</button>
@@ -532,7 +535,7 @@ try{
 // Seitenansicht: die Luft rechnet in einem eigenen Worker, damit sie einen ganzen Prozessorkern bekommt.
 // Das Hauptprogramm schickt je Bild die Körperkarte und die geschuldeten Rechenschritte, der Worker rechnet sie ab, so schnell er kann.
 function sideWorkerFn(self,createSim){
-  let sim=null, debt=0, running=false; const CAP=40, ch=new MessageChannel();
+  let sim=null, debt=0, running=false, lag=false, wReq=0, wDrop=0, wT0=0, frac=0; const ch=new MessageChannel();
   ch.port1.onmessage=run;
   function run(){
     if(!sim){running=false; return;}
@@ -541,22 +544,26 @@ function sideWorkerFn(self,createSim){
     const ms=performance.now()-t0; let reset=false;
     if(sim.ux[sim.NX*5+5]!==sim.ux[sim.NX*5+5]){sim.reset(); reset=true;}
     const ux=sim.ux.slice(), uy=sim.uy.slice();
-    self.postMessage({ux,uy,n,ms,debt,reset},[ux.buffer,uy.buffer]);
+    self.postMessage({ux,uy,n,ms,lag,frac,reset},[ux.buffer,uy.buffer]);
     if(debt>=1) ch.port2.postMessage(0); else running=false;
   }
   self.onmessage=e=>{const d=e.data;
     if(d.cmd==="init"){sim=createSim(d.NX,d.NY,d.P); debt=0;}
     else if(d.cmd==="frame"&&sim){sim.setMap(d.map); sim.por.set(d.por); sim.P.Ug=d.Ug;
-      debt=Math.min(CAP,debt+d.add); if(!running&&debt>=1){running=true; ch.port2.postMessage(0);}}
+      // Was über gut zwei Bilder Vorrat hinausgeht, verfällt: dann hinkt die Luft nach
+      // Die Luft "hinkt nach", wenn über eine halbe Sekunde mehr als 5 % der Schritte verfallen sind
+      const cap=Math.max(40,2.5*d.add); debt+=d.add; wReq+=d.add; if(debt>cap){wDrop+=debt-cap; debt=cap;}
+      const t=performance.now(); if(t-wT0>500){frac=wReq?wDrop/wReq:0; lag=frac>0.05; wReq=0; wDrop=0; wT0=t;}
+      if(!running&&debt>=1){running=true; ch.port2.postMessage(0);}}
   };
 }
-let sideWk=null, sideRecv=0, sideRate=0, sideDebtW=0;
+let sideWk=null, sideRecv=0, sideRate=0, sideLagW=false, sideFrac=0;
 function startSideWorker(){
   if(sideWk!==null) return;
   try{
     const src=createSim.toString()+"\n("+sideWorkerFn.toString()+")(self,createSim);";
     sideWk=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
-    sideWk.onmessage=e=>{const d=e.data; sim2.ux=d.ux; sim2.uy=d.uy; sideRecv+=d.n; sideDebtW=d.debt;
+    sideWk.onmessage=e=>{const d=e.data; sim2.ux=d.ux; sim2.uy=d.uy; sideRecv+=d.n; sideLagW=d.lag; sideFrac=d.frac;
       if(d.n>=4&&d.ms>0){const r=d.n/d.ms*1000; sideRate=sideRate?sideRate+0.1*(r-sideRate):r;}
       if(d.reset) sideT=0;};
     sideWk.onerror=()=>{sideWk=false; sim2=createSim(NX2,NY2,PAR2);};   // ohne Worker rechnet das Hauptprogramm wie bisher
@@ -807,6 +814,9 @@ $("wWind").firstChild.insertAdjacentHTML("beforeend",'<div class="wtag t">Rück.
 const setPace=makeWheel("wPace",range(170,450,5),v=>mmss(v),v=>{$("pace").value=v;ui();readout();});
 // Schrittfrequenz: "auto" folgt dem Tempo, sonst fester Wert. Wirkt nur auf die Figuren der Seitenansicht.
 const setCad=makeWheel("wCad",[0].concat(range(150,210,2)),v=>v?String(v):"auto",v=>{CAD=v;ui();});
+// Bildrate begrenzen: "max" zeichnet im Takt des Bildschirms, sonst höchstens so viele Bilder je Sekunde. Die Rechnung läuft unabhängig davon.
+let fpsCap=0, nextDraw=0, lastLoop=0;
+const setFps=makeWheel("wFps",[0,60,50,40,30,24,20,15],v=>v?String(v):"max",v=>{fpsCap=v; nextDraw=0;});
 $("valid").innerHTML=VALID.map(v=>'<tr><td>'+v[0]+'</td><td class="num">'+de(v[1],1)+' %</td><td class="num">'+de(v[2],1)+' %</td><td><span class="pill '+(v[3]==="geeicht"?"warn":"ok")+'">'+v[3]+'</span></td></tr>').join("");
 
 // ---- Luftteilchen ---------------------------------------------------------
@@ -1122,7 +1132,7 @@ function sideStep(){
   const all=sideRunners(), L=all.filter(r=>Math.abs(r.lat)<SLICE), O=all.filter(r=>Math.abs(r.lat)>=SLICE&&sideW(r.lat)>0).sort((a,b)=>sideW(a.lat)-sideW(b.lat));
   const t0=performance.now(), dtR=lastSide?Math.min(0.1,Math.max(0.004,(t0-lastSide)/1000)):1/60; lastSide=t0;   // echte Zeit seit dem letzten Bild
   // Die Figuren laufen streng nach der Uhr mit fester Zeitlupe. Die Luftrechnung zieht mit so vielen Schritten nach, wie dazu nötig sind.
-  sideT+=dtR/slowFix; simDebt=Math.min(40,simDebt+dtR/slowFix/sp.dtp);
+  sideT+=dtR/slowFix; simDebt=sideWk?simDebt+dtR/slowFix/sp.dtp:Math.min(40,simDebt+dtR/slowFix/sp.dtp);
   map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); sim2.setMap(map2);
   pmap.fill(0); O.forEach((r,j)=>rasterRunner(pmap,pose(sideT/sp.Tc+r.ph0,sp.v),j+1,r.along));          // schwächste zuerst, die stärkste gewinnt
   for(let k=0;k<pmap.length;k++) sim2.por[k]=pmap[k]?PDMAX*sideW(O[pmap[k]-1].lat):0;
@@ -1227,10 +1237,10 @@ function drawSide(n){
     if(M.shown&&!vortex&&(r.me||r.along>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
   // Tempo-Anzeige gut lesbar unten rechts; kommt die Luft nicht hinterher, steht das dabei
-  const lag=(sideWk?sideDebtW:simDebt)>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
+  const lag=sideWk?sideLagW:simDebt>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
   cS.font="700 34px system-ui,sans-serif"; cS.textAlign="right"; cS.textBaseline="middle";
   // Bildrate daneben, kleiner und nur zweimal je Sekunde neu, damit die Zahl nicht flackert
-  if(fpsTick++%30===0) fpsShow=Math.round(fpsSm);
+  {const t=performance.now(); if(t-fpsTick>500){fpsTick=t; fpsShow=Math.round(fpsSm);}}
   const ft=fpsShow+" Bilder/s", mw=cS.measureText(tx).width; cS.font="600 24px system-ui,sans-serif"; const fw=cS.measureText(ft).width;
   const tw=mw+fw+50; cS.fillStyle="rgba(10,19,32,.85)"; cS.fillRect(cvS.width-tw-10,cvS.height-56,tw,48);
   cS.fillStyle="#9fb0c4"; cS.fillText(ft,cvS.width-24,cvS.height-30);
@@ -1282,7 +1292,12 @@ function readout(){
     :P.k==="solo"?"Ohne Pacer. Das ist der Bezugswert.":"Für diese Aufstellung gibt es keinen Studienwert.";
 }
 let frame=0;
-function loop(){
+function loop(now){
+  requestAnimationFrame(loop);
+  now=now||performance.now();
+  if(fpsCap){const T=1000/fpsCap; if(now<nextDraw-3) return; nextDraw+=T; if(now-nextDraw>T||nextDraw-now>2*T) nextDraw=now+T;}
+  // Bei begrenzter Bildrate legen die Teilchen der Draufsicht je Bild entsprechend mehr Weg zurück
+  const fs=fpsCap&&lastLoop?Math.min(6,Math.max(1,(now-lastLoop)/16.7)):1; lastLoop=now;
   let steps=0;
   if(!paused&&!document.hidden){
     // Gerechnet wird im Worker. Im Wirbelmodus folgen die Teilchen dem Fortschritt der Rechnung, sonst laufen sie gleichmäßig.
@@ -1291,13 +1306,12 @@ function loop(){
     const rel=3600/(+$("pace").value)+(+$("wind").value);
     // Im Messmodus laufen die Teilchen immer gleich schnell, egal wie viele Rechenschritte das Gerät gerade schafft.
     if(sideView) drawSide(sideStep());
-    else draw((vortex?steps:8)*Math.min(2.2,Math.max(0.3,rel/15)));
+    else draw((vortex?steps:8*fs)*Math.min(2.2,Math.max(0.3,rel/15)));
     if(frame%30===0) measure();
     if(frame++%6===0) readout();
   }
-  requestAnimationFrame(loop);
 }
-sendSetup(); loadPreset("f1"); setWind(0); setPace(180); setCad(180); setView(false); loop();
+sendSetup(); loadPreset("f1"); setWind(0); setPace(180); setCad(180); setFps(0); setView(false); loop();
 </script>
 </body>
 </html>
