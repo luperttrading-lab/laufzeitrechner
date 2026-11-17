@@ -129,7 +129,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 44</div>
+    <div class="kicker">Testversion 45</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -549,7 +549,7 @@ function sideWorkerFn(self,createSim){
   }
   self.onmessage=e=>{const d=e.data;
     if(d.cmd==="init"){sim=createSim(d.NX,d.NY,d.P); debt=0;}
-    else if(d.cmd==="frame"&&sim){sim.setMap(d.map); sim.por.set(d.por); sim.P.Ug=d.Ug;
+    else if(d.cmd==="frame"&&sim){sim.setMap(d.map); sim.por.set(d.por); sim.P.U=d.U; sim.P.Ug=d.Ug;
       // Was über gut zwei Bilder Vorrat hinausgeht, verfällt: dann hinkt die Luft nach
       // Die Luft "hinkt nach", wenn über eine halbe Sekunde mehr als 5 % der Schritte verfallen sind
       const cap=Math.max(40,2.5*d.add); debt+=d.add; wReq+=d.add; if(debt>cap){wDrop+=debt-cap; debt=cap;}
@@ -1132,14 +1132,17 @@ function sideParams(){
   const v=1000/(+$("pace").value), rel=v+(+$("wind").value)/3.6;            // m/s
   const Tc=120/stepsPerMin(v);                                             // Dauer eines Doppelschritts
   // Die Uhr der Figuren hängt nur am Lauftempo, nicht am Wind: Wind darf den Schrittrhythmus nicht ändern.
-  // Dafür laufen die Luftteilchen im Bild um den Faktor air = Fahrtwind / Lauftempo schneller oder langsamer.
-  return {v,rel,Tc,dtp:DXS*PAR2.U/Math.max(v,0.5),air:Math.max(0.3,Math.min(2.6,rel/Math.max(v,0.5)))};   // dtp = Sekunden je Rechenschritt
+  // In der Rechnung steht das Tempo 0,1 für das Schnellere von Straße und Fahrtwind, das andere ist entsprechend kleiner:
+  // bei Rückenwind strömt die Luft langsamer ein (bis zum Stillstand), die Straße läuft voll; bei Gegenwind umgekehrt.
+  // Bei Gegenwind laufen die Luftteilchen im Bild um den Faktor air = Fahrtwind / Lauftempo schneller.
+  const U0=0.1, vv=Math.max(v,0.5), r=Math.max(0,rel);                     // Rückenwind schneller als du: wie ruhende Luft um dich gerechnet
+  return {v,rel,Tc,dtp:DXS*U0/vv,uin:U0*Math.min(1,r/vv),ug:U0*Math.min(1,vv/Math.max(r,1e-6)),air:r>vv?Math.min(2.6,r/vv):1};   // dtp = Sekunden je Rechenschritt
 }
 let fpsShow=60, fpsTick=0, lastSide=0, fpsSm=60, slowFix=2, rawSm=2, simDebt=0, slowMode=0, nSm=8;   // slowMode 0 = automatisch, sonst feste Zeitlupe
 const SLOWS=[1,1.25,1.5,2,2.5,3,4,5,6,8,10,12];
 function sideStep(){
-  const sp=sideParams(); if(sp.rel<0.8) return 0;
-  PAR2.Ug=PAR2.U*sp.v/sp.rel;                                              // die Straße läuft mit dem Lauftempo unter euch durch
+  const sp=sideParams();
+  PAR2.U=sp.uin; PAR2.Ug=sp.ug;                                            // Luft strömt mit dem Fahrtwind ein, die Straße läuft mit dem Lauftempo unter euch durch
   const all=sideRunners(), L=all.filter(r=>Math.abs(r.lat)<SLICE), O=all.filter(r=>Math.abs(r.lat)>=SLICE&&sideW(r.lat)>0).sort((a,b)=>sideW(a.lat)-sideW(b.lat));
   const t0=performance.now(), dtR=lastSide?Math.min(0.1,Math.max(0.004,(t0-lastSide)/1000)):1/60; lastSide=t0;   // echte Zeit seit dem letzten Bild
   // Die Figuren laufen streng nach der Uhr mit fester Zeitlupe. Die Luftrechnung zieht mit so vielen Schritten nach, wie dazu nötig sind.
@@ -1150,7 +1153,7 @@ function sideStep(){
   fpsSm+=0.05*(1/dtR-fpsSm);
   if(sideWk){                                                       // Worker: Karte und geschuldete Schritte hinschicken
     const add=Math.floor(simDebt); simDebt-=add; const m=map2.slice(), po=sim2.por.slice();
-    sideWk.postMessage({cmd:"frame",map:m,por:po,Ug:PAR2.Ug,add},[m.buffer,po.buffer]);
+    sideWk.postMessage({cmd:"frame",map:m,por:po,U:PAR2.U,Ug:PAR2.Ug,add},[m.buffer,po.buffer]);
     const got=sideRecv; sideRecv=0; nSm+=0.25*(got-nSm);
     // Zeitlupe wählen: Bedarf an Schritten je Sekunde gegen das, was der Worker schafft (mit 10 % Reserve)
     if(sideRate>0){const raw=Math.max(1,1/sp.dtp/(0.9*sideRate)); rawSm+=0.015*(raw-rawSm);
@@ -1197,12 +1200,12 @@ function drawFigure(P,al,me,faded,cS){
   drawRunnerFig(cS,P,X,Y,k,faded||(me?COL_ME:COL_PACE),false);
 }
 function drawSide(n){
-  const {ux,uy}=sim2, d=img2.data, U=PAR2.U, sp=sideParams();
+  const {ux,uy}=sim2, d=img2.data, U=PAR2.U, Un=Math.max(U,0.03), sp=sideParams();   // Un: Bezug für Farben, auch wenn kaum Luft einströmt
   for(let x=0;x<NX2;x++) for(let y=0;y<NY2;y++){
     const c=y*NX2+x, o=((NX2-1-x)*NY2+y)*4;
-    if(road){const g=uy[c]-U, s=Math.min(1,Math.hypot(ux[c],g)/U), f=g<0?s:0, bk=g<0?0:s;
+    if(road){const g=uy[c]-U, s=Math.min(1,Math.hypot(ux[c],g)/Un), f=g<0?s:0, bk=g<0?0:s;
       d[o]=8+10*f+95*bk; d[o+1]=14+105*f+45*bk; d[o+2]=24+95*f;}
-    else {const s=Math.hypot(ux[c],uy[c])/U, a=s<1?s:1, h=s>1?Math.min(1,(s-1)/0.6):0;
+    else {const s=Math.hypot(ux[c],uy[c])/Un, a=s<1?s:1, h=s>1?Math.min(1,(s-1)/0.6):0;
       d[o]=8+22*a+85*h; d[o+1]=14+38*a+22*h; d[o+2]=24+56*a-36*h;}
     d[o+3]=255;
   }
@@ -1228,10 +1231,10 @@ function drawSide(n){
   if(showAir){
     const seg=[[],[],[]];
     for(let i=0;i<NP2;i++){
-      let x=qx[i], y=qy[i]; const c=(y|0)*NX2+(x|0), u=ux[c], v=road?uy[c]-U:uy[c], s=Math.hypot(u,v)/U;
+      let x=qx[i], y=qy[i]; const c=(y|0)*NX2+(x|0), u=ux[c], v=road?uy[c]-U:uy[c], s=Math.hypot(u,v)/Un;
       seg[road?(s<0.1?1:v<0?0:2):(s<0.55?0:s>1.15?2:1)].push(y*S2,cY(x),(y-v*15*Math.min(1.5,sp.air))*S2,cY(x-u*15*Math.min(1.5,sp.air)));
       x+=u*n*sp.air; y+=(road?uy[c]:v)*n*sp.air;
-      if(y>=NY2-1||y<0||x<1||x>=NX2-1||sim2.body[(y|0)*NX2+(x|0)]||Math.random()<0.004){x=1+Math.random()*(NX2-2); y=road?Math.random()*NY2:Math.random()*2;}
+      if(y>=NY2-1||y<0||x<1||x>=NX2-1||sim2.body[(y|0)*NX2+(x|0)]||Math.random()<0.004){x=1+Math.random()*(NX2-2); y=road||U<0.03?Math.random()*NY2:Math.random()*2;}   // strömt kaum Luft ein, entstehen neue Teilchen überall
       qx[i]=x; qy[i]=y;
     }
     cS.globalCompositeOperation="lighter"; cS.lineCap="round"; cS.lineWidth=2.4;
@@ -1245,7 +1248,7 @@ function drawSide(n){
   // je weiter seitlich, desto stärker zum Hintergrund hin abgedunkelt (deckend gezeichnet: schneller als eine durchscheinende Ebene)
   out.sort((a,b)=>sideW(a.lat)-sideW(b.lat)).forEach(r=>drawFigure(pose(sideT/sp.Tc+r.ph0,sp.v),r.along,false,dimCol(0.22+0.5*sideW(r.lat)),cS));
   inn.forEach(r=>{const P=pose(sideT/sp.Tc+r.ph0,sp.v); drawFigure(P,r.along,r.me,false,cS);
-    if(M.shown&&!vortex&&(r.me||r.along>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
+    if(M.shown&&!vortex&&sp.rel*3.6>=3&&(r.me||r.along>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
   // Tempo-Anzeige gut lesbar unten rechts; kommt die Luft nicht hinterher, steht das dabei
   const lag=sideWk?sideLagW:simDebt>=20, tx=(slowAvg<=1?"Echtzeit":"Zeitlupe ×"+String(slowAvg).replace(".",","))+(lag?" · Luft hinkt nach":"");
