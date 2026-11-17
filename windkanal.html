@@ -130,7 +130,7 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
 <div class="view">
 <div class="inner">
   <header>
-    <div class="kicker">Testversion 48</div>
+    <div class="kicker">Testversion 49</div>
     <h1>Windkanal für Läufer</h1>
   </header>
 
@@ -273,6 +273,11 @@ dl{margin:0} dt{font-weight:700;margin-top:8px} dd{margin:0;color:var(--text2);m
       <button type="button" data-s="1" aria-pressed="false">Echtzeit</button>
       <button type="button" data-s="1.5" aria-pressed="false">×1,5</button>
       <button type="button" data-s="2" aria-pressed="false">×2</button>
+    </div>
+    <div class="row" id="figRow" style="margin-top:8px" hidden>
+      <span class="small" style="font-weight:700">Figuren</span>
+      <button type="button" data-f="0" aria-pressed="true">aktuell</button>
+      <button type="button" data-f="1" aria-pressed="false">erste Fassung</button>
     </div>
     <div class="row" style="margin-top:8px">
       <button type="button" id="vTunnel" aria-pressed="true">Fahrtwind</button>
@@ -734,6 +739,8 @@ function setView(r){road=r; $("vTunnel").setAttribute("aria-pressed",String(!r))
 $("vTunnel").onclick=()=>setView(false); $("vRoad").onclick=()=>setView(true);
 document.querySelectorAll("#slowRow [data-s]").forEach(b=>b.onclick=()=>{slowMode=+b.dataset.s; if(slowMode) slowFix=slowMode;
   document.querySelectorAll("#slowRow [data-s]").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));});
+document.querySelectorAll("#figRow [data-f]").forEach(b=>b.onclick=()=>{oldFig=b.dataset.f==="1";
+  document.querySelectorAll("#figRow [data-f]").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));});
 $("vTop").onclick=()=>enterSide(false); $("vSide").onclick=()=>enterSide(true);
 document.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{grid=+b.dataset.g;document.querySelectorAll("[data-g]").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));});
 $("air").onclick=()=>{showAir=!showAir;$("air").setAttribute("aria-pressed",String(showAir));};
@@ -1118,6 +1125,43 @@ function drawRunnerFig(c,P,X,Y,k,col,faded){
   c.strokeStyle=dark(col.skin,0.68); c.lineWidth=0.045*R; c.beginPath(); c.moveTo(0.7*R,0.5*R); c.lineTo(0.84*R,0.5*R); c.stroke();                           // Mund
   c.restore(); c.restore();
 }
+// ---- Zum Vergleich: die allererste Fassung der Laufbewegung (unter „Bild“ umschaltbar) ----
+// Oberschenkel- und Kniewinkel laufen durch feste Stützwerte, die Hüfte wird einfach so hoch gesetzt, dass der tiefste Fuß
+// den Boden berührt. Der Fuß steht deshalb nicht fest und rutscht, die Figur ist aus Strichen gezeichnet.
+let oldFig=false;
+const SEG0={thigh:0.44,shank:0.44,torso:0.55,foot:0.2,uarm:0.30,farm:0.26};
+const GK0=[0,0.13,0.26,0.45,0.62,0.80,1], HIPK0=[28,6,-24,-8,22,34,28], KNEEK0=[15,38,18,95,105,45,15];
+function kf0(V,ph){ph=((ph%1)+1)%1; for(let i=0;i<GK0.length-1;i++) if(ph<=GK0[i+1]){const t=(ph-GK0[i])/(GK0[i+1]-GK0[i]), w=(1-Math.cos(Math.PI*t))/2; return V[i]+(V[i+1]-V[i])*w;} return V[0];}
+function poseOld(ph,v){
+  const R=Math.PI/180, lean=6*R, amp=Math.max(0.8,Math.min(1.1,0.75+0.25*v/5.88)), S0=SEG0;
+  const leg=p=>{const th=kf0(HIPK0,p)*amp*R, a=th-kf0(KNEEK0,p)*R;
+    const knee=[S0.thigh*Math.sin(th),-S0.thigh*Math.cos(th)], ank=[knee[0]+S0.shank*Math.sin(a),knee[1]-S0.shank*Math.cos(a)];
+    const fa=a+Math.PI/2*0.92;               // Fuß steht fast rechtwinklig zum Unterschenkel
+    const toe=[ank[0]+S0.foot*Math.sin(fa),ank[1]-S0.foot*Math.cos(fa)], heel=[ank[0]-0.05*Math.sin(fa),ank[1]+0.05*Math.cos(fa)];
+    return {th,knee,ank,toe,heel,low:Math.min(ank[1]-0.06,toe[1],heel[1])};};
+  const A=leg(ph), B=leg(ph+0.5);
+  const q=((ph%0.5)+0.5)%0.5, fl=q>0.26?0.045*Math.sin(Math.PI*(q-0.26)/0.24)**2:0;   // Flugphase
+  const hz=-Math.min(A.low,B.low)+fl, add=p=>[p[0],p[1]+hz], hip=[0,hz];
+  const up=L=>[L*Math.sin(lean),hz+L*Math.cos(lean)];
+  const sh=up(S0.torso-0.05);
+  const arm=th=>{const al=0.8*th, el=[sh[0]+S0.uarm*Math.sin(al),sh[1]-S0.uarm*Math.cos(al)], b=al+85*R;
+    return {sh,el,ha:[el[0]+S0.farm*Math.sin(b),el[1]-S0.farm*Math.cos(b)]};};
+  const L2=o=>({hip,knee:add(o.knee),ank:add(o.ank),toe:add(o.toe),heel:add(o.heel)});
+  return {hip,neck:up(S0.torso),head:up(S0.torso+0.16),sh,A:L2(A),B:L2(B),armN:arm(B.th),armF:arm(A.th)};
+}
+const figPose=(ph,v)=>oldFig?poseOld(ph,v):pose(ph,v);
+function drawFigureOld(P,X,Y,k,me,faded,cS){
+  const col=me?["#f3c86a","#b9862a"]:["#c9d4e2","#7d8ea3"], far=me?"#9a7020":"#5f6f82";
+  cS.save(); cS.globalAlpha=faded?0.32:1; cS.lineCap="round"; cS.lineJoin="round";
+  const limb=(pts,w,c)=>{cS.strokeStyle=c; cS.lineWidth=w*k; cS.beginPath(); cS.moveTo(X(pts[0]),Y(pts[0])); pts.slice(1).forEach(p=>cS.lineTo(X(p),Y(p))); cS.stroke();};
+  limb([P.sh,P.armF.el,P.armF.ha],0.07,far);                                   // ferner Arm
+  limb([P.hip,P.B.knee,P.B.ank],0.12,far); limb([P.B.heel,P.B.toe],0.07,far);  // fernes Bein
+  limb([P.hip,P.neck],0.24,col[1]);                                            // Rumpf
+  limb([P.hip,P.A.knee,P.A.ank],0.13,col[0]); limb([P.A.heel,P.A.toe],0.08,col[0]);  // nahes Bein
+  limb([P.sh,P.armN.el,P.armN.ha],0.075,col[0]);                               // naher Arm
+  cS.fillStyle=col[0]; cS.beginPath(); cS.arc(X(P.head),Y(P.head),0.11*k,0,7); cS.fill();
+  cS.restore();
+}
 // Kapseln (Strecke mit Radius) in die Körperkarte der Seitenrechnung eintragen
 function capsule(map,p,q,r,id,al){
   const cx=v=>1+v[1]/DXS, cy=v=>YME-(al+v[0])/DXS, x1=cx(p),y1=cy(p),x2=cx(q),y2=cy(q), rr=r/DXS;
@@ -1166,8 +1210,8 @@ function sideStep(){
   // Die Figuren laufen streng nach der Uhr mit fester Zeitlupe. Die Luftrechnung zieht mit so vielen Schritten nach, wie dazu nötig sind.
   sideT+=dtR/slowFix; simDebt=sideWk?simDebt+dtR/slowFix/sp.dtp:Math.min(40,simDebt+dtR/slowFix/sp.dtp);
   if(sp.rev!==sideRev){sideRev=sp.rev; for(let i=0;i<NP2;i++) qy[i]=NY2-1-qy[i];}                 // Windrichtung gewechselt: Teilchen bleiben im Bild, wo sie sind
-  map2.fill(0); L.forEach(r=>rasterRunner(map2,pose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); if(sideRev) flipAlong(map2); sim2.setMap(map2);
-  pmap.fill(0); O.forEach((r,j)=>rasterRunner(pmap,pose(sideT/sp.Tc+r.ph0,sp.v),j+1,r.along));          // schwächste zuerst, die stärkste gewinnt
+  map2.fill(0); L.forEach(r=>rasterRunner(map2,figPose(sideT/sp.Tc+r.ph0,sp.v),r.i+1,r.along)); if(sideRev) flipAlong(map2); sim2.setMap(map2);
+  pmap.fill(0); O.forEach((r,j)=>rasterRunner(pmap,figPose(sideT/sp.Tc+r.ph0,sp.v),j+1,r.along));          // schwächste zuerst, die stärkste gewinnt
   if(sideRev) flipAlong(pmap);
   for(let k=0;k<pmap.length;k++) sim2.por[k]=pmap[k]?PDMAX*sideW(O[pmap[k]-1].lat):0;
   fpsSm+=0.05*(1/dtR-fpsSm);
@@ -1193,7 +1237,7 @@ function sideStep(){
   return Math.max(1,n);
 }
 function enterSide(on){
-  sideView=on; $("vTop").setAttribute("aria-pressed",String(!on)); $("vSide").setAttribute("aria-pressed",String(on));
+  sideView=on; $("vTop").setAttribute("aria-pressed",String(!on)); $("vSide").setAttribute("aria-pressed",String(on)); $("figRow").hidden=!on;
   cv.hidden=on; cvS.hidden=!on; const st=document.querySelector(".stage");
   st.classList.toggle("side",on);
   if(on){ if(!sim2){sim2=createSim(NX2,NY2,PAR2); map2=new Uint8Array(NX2*NY2); pmap=new Uint8Array(NX2*NY2);} startSideWorker();
@@ -1217,7 +1261,7 @@ function drawFigure(P,al,me,faded,cS){
   const lowest=Math.min(P.A.heel[1],P.A.toe[1],P.B.heel[1],P.B.toe[1]), air=Math.max(0,Math.min(1,lowest/0.12));
   cS.fillStyle="rgba(0,0,0,"+((faded?0.15:0.38)*(1-0.55*air))+")"; cS.beginPath();
   cS.ellipse(X([0.02,0]),groundY()+7,(0.34-0.1*air)*k,5,0,0,7); cS.fill();
-  drawRunnerFig(cS,P,X,Y,k,faded||(me?COL_ME:COL_PACE),false);
+  if(oldFig) drawFigureOld(P,X,Y,k,me,!!faded,cS); else drawRunnerFig(cS,P,X,Y,k,faded||(me?COL_ME:COL_PACE),false);
 }
 function drawSide(n){
   const {ux,uy}=sim2, d=img2.data, U=PAR2.U, Un=Math.max(U,0.03), sp=sideParams();   // Un: Bezug für Farben, auch wenn kaum Luft einströmt
@@ -1267,8 +1311,8 @@ function drawSide(n){
   // Läufer: erst die außerhalb der Schnittebene (blass, als ganze Ebene), dann die in der Ebene, du zuletzt
   const L=sideRunners(), out=L.filter(r=>Math.abs(r.lat)>=SLICE), inn=L.filter(r=>Math.abs(r.lat)<SLICE).sort((a,b)=>(a.me?1:0)-(b.me?1:0));
   // je weiter seitlich, desto stärker zum Hintergrund hin abgedunkelt (deckend gezeichnet: schneller als eine durchscheinende Ebene)
-  out.sort((a,b)=>sideW(a.lat)-sideW(b.lat)).forEach(r=>drawFigure(pose(sideT/sp.Tc+r.ph0,sp.v),r.along,false,dimCol(0.22+0.5*sideW(r.lat)),cS));
-  inn.forEach(r=>{const P=pose(sideT/sp.Tc+r.ph0,sp.v); drawFigure(P,r.along,r.me,false,cS);
+  out.sort((a,b)=>sideW(a.lat)-sideW(b.lat)).forEach(r=>drawFigure(figPose(sideT/sp.Tc+r.ph0,sp.v),r.along,false,dimCol(0.22+0.5*sideW(r.lat)),cS));
+  inn.forEach(r=>{const P=figPose(sideT/sp.Tc+r.ph0,sp.v); drawFigure(P,r.along,r.me,false,cS);
     if(M.shown&&!vortex&&Math.abs(sp.rel)*3.6>=3&&(r.me||(sp.rev?-r.along:r.along)>-0.3)){const p=100*(M.rel[r.i+1]-1); cS.font="700 "+(r.me?24:20)+"px system-ui,sans-serif"; cS.textAlign="center"; cS.fillStyle=r.me?"#f3c86a":"#e8edf3";
       cS.fillText((Math.round(p)===0?"±":p>0?"+":"−")+Math.abs(p).toFixed(0)+" %",(YME-(r.along+P.head[0])/DXS)*S2,groundY()-(P.head[1]+0.2)/DXS*S2);}});
   // Tempo-Anzeige gut lesbar unten rechts; kommt die Luft nicht hinterher, steht das dabei
